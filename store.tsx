@@ -84,14 +84,19 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const fetchProducts = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('products')
-      .select('*, variants:product_variants(*)')
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*, variants:product_variants(*)')
+        .order('created_at', { ascending: false });
 
-    if (error) console.error('Error fetching products:', error);
-    if (data) setProducts(data as Product[]);
-    setLoading(false);
+      if (error) console.error('Error fetching products:', error);
+      if (data) setProducts(data as Product[]);
+    } catch (e) {
+      console.error("Critical fetch error", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fetchChats = async () => {
@@ -250,27 +255,44 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const login = async (email: string, pass: string) => {
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password: pass,
-    });
-    setLoading(false);
-    return { error };
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password: pass,
+      });
+      return { error };
+    } catch (e: any) {
+      console.error(e);
+      return { error: e };
+    } finally {
+      setLoading(false);
+    }
   };
 
   const signUp = async (email: string, pass: string) => {
     setLoading(true);
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password: pass,
-    });
-    setLoading(false);
-    return { data, error };
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password: pass,
+      });
+      return { data, error };
+    } catch (e: any) {
+      console.error(e);
+      return { data: null, error: e };
+    } finally {
+      setLoading(false);
+    }
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.error("Sign out error", e);
+    } finally {
+      setUser(null);
+    }
   };
 
   // Chat Functions
