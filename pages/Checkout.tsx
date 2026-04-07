@@ -8,8 +8,8 @@ const Checkout: React.FC = () => {
     const navigate = useNavigate();
     const [step, setStep] = useState<'review' | 'payment' | 'success'>('review');
     const [loading, setLoading] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
     const [copied, setCopied] = useState(false);
-    // Removed explicit customerName input state, utilizing "Customer" default
     const [proofFile, setProofFile] = useState<string | null>(null);
     const [createdChatId, setCreatedChatId] = useState<string | null>(null);
     const [paymentMethod, setPaymentMethod] = useState<'pix' | 'international'>('pix');
@@ -18,7 +18,6 @@ const Checkout: React.FC = () => {
 
     // Specific Pix Key
     const pixCode = "c8e4e850-c45d-4660-a2f1-44d8cf3aaf0f";
-    const pixBeneficiary = "PEDRO HENRIQUE COSTA BELFORT";
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -53,8 +52,11 @@ const Checkout: React.FC = () => {
 
         if (paymentMethod === 'pix' && (!contactEmail || !contactEmail.includes('@'))) {
             setEmailError(true);
+            alert("Por favor insira um e-mail válido para entrega.");
             return;
         }
+
+        setSubmitting(true);
 
         // Use user's email/name if available
         const customerName = user?.email?.split('@')[0] || "Customer";
@@ -75,10 +77,17 @@ const Checkout: React.FC = () => {
             console.error("Failed to trigger emails", err);
         }
 
-        const chatId = await createChat(customerName, proofFile || '', totalCartValue);
-        setCreatedChatId(chatId);
-        clearCart();
-        setStep('success');
+        try {
+            const chatId = await createChat(customerName, proofFile || '', totalCartValue);
+            setCreatedChatId(chatId);
+            clearCart();
+            setStep('success');
+        } catch (error) {
+            console.error("Failed handling checkout:", error);
+            alert("Ocorreu um erro ao criar seu pedido. Verifique se a imagem do seu comprovante não é grande demais e tente novamente.");
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     const handleOpenChat = () => {
@@ -223,12 +232,7 @@ const Checkout: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    <div className="mb-4">
-                                        <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-gray-500">Pix Beneficiary</label>
-                                        <div className="rounded-lg border border-slate-700 bg-slate-950 p-3 text-sm font-bold text-white text-center">
-                                            {pixBeneficiary}
-                                        </div>
-                                    </div>
+
 
                                     <div className="mb-6">
                                         <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-gray-500">Pix Copy and Paste</label>
@@ -294,10 +298,10 @@ const Checkout: React.FC = () => {
 
                                     <button
                                         onClick={handleFinish}
-                                        disabled={!proofFile}
-                                        className="w-full rounded-xl bg-green-600 py-4 font-bold text-white transition hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        disabled={!proofFile || submitting}
+                                        className="w-full flex justify-center items-center gap-2 rounded-xl bg-blue-600 py-4 font-bold text-white transition hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        Confirm & Send Proof
+                                        {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Confirm & Send Proof'}
                                     </button>
                                 </>
                             ) : (
@@ -315,16 +319,17 @@ const Checkout: React.FC = () => {
                                             href="https://discord.gg/E3xsUmtx"
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="mb-4 w-full rounded-xl bg-[#5865F2] py-4 font-bold text-white transition hover:bg-[#4752C4]"
+                                            className="mb-4 w-full text-center rounded-xl bg-[#5865F2] py-4 font-bold text-white transition hover:bg-[#4752C4]"
                                         >
                                             Join Discord Server
                                         </a>
 
                                         <button
                                             onClick={handleFinish}
-                                            className="w-full rounded-xl border border-slate-700 bg-slate-900 py-4 font-bold text-white transition hover:bg-slate-800"
+                                            disabled={submitting}
+                                            className="w-full flex justify-center items-center gap-2 rounded-xl border border-slate-700 bg-blue-600 py-4 font-bold text-white transition hover:bg-blue-500 disabled:opacity-50"
                                         >
-                                            Create Order & Chat with Admin
+                                            {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Create Order & Chat with Admin'}
                                         </button>
                                     </div>
                                 </>

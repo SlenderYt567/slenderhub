@@ -289,7 +289,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     };
 
     // Insert session to DB
-    await supabase.from('chat_sessions').insert({
+    const { error } = await supabase.from('chat_sessions').insert({
       id: newChat.id,
       customer_name: newChat.customerName,
       status: newChat.status,
@@ -298,6 +298,11 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       total_amount: newChat.totalAmount,
       last_message_at: newChat.lastMessageAt
     });
+
+    if (error) {
+      console.error("Error creating chat session:", error);
+      throw new Error(error.message);
+    }
 
     setChats(prev => [newChat, ...prev]);
 
