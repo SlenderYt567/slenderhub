@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store';
-import { ArrowLeft, Check, Copy, Loader2, MessageSquare, Upload, FileCheck, Globe } from 'lucide-react';
+import { ArrowLeft, Check, Copy, Loader2, MessageSquare, Upload, FileCheck, Globe, CreditCard } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PayPalButtons, usePayPalScriptReducer } from '@paypal/react-paypal-js';
+import StripePayment from '../components/StripePayment';
 
 // Compresses a base64 image to max 800px and quality 70% to avoid Supabase payload limits
 const compressImage = (base64: string, maxSize = 800, quality = 0.7): Promise<string> => {
@@ -35,7 +36,7 @@ const Checkout: React.FC = () => {
     const [copied, setCopied] = useState(false);
     const [proofFile, setProofFile] = useState<string | null>(null);
     const [createdChatId, setCreatedChatId] = useState<string | null>(null);
-    const [paymentMethod, setPaymentMethod] = useState<'pix' | 'international'>('pix');
+    const [paymentMethod, setPaymentMethod] = useState<'pix' | 'international' | 'stripe'>('pix');
     const [contactEmail, setContactEmail] = useState(user?.email || '');
     const [emailError, setEmailError] = useState(false);
 
@@ -219,6 +220,22 @@ const Checkout: React.FC = () => {
                                 </button>
 
                                 <button
+                                    onClick={() => setPaymentMethod('stripe')}
+                                    className={`flex w-full items-center justify-between rounded-xl border p-4 text-left transition ${paymentMethod === 'stripe' ? 'border-blue-400 bg-blue-400/10' : 'border-slate-800 bg-slate-950 hover:bg-slate-800'}`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-8 w-12 rounded bg-white/10 flex items-center justify-center">
+                                            <CreditCard className="h-4 w-4" />
+                                        </div>
+                                        <div>
+                                            <span className="block font-bold text-white">Credit / Debit Card</span>
+                                            <span className="text-xs text-gray-400">Visa, Mastercard, Amex — via Stripe</span>
+                                        </div>
+                                    </div>
+                                    <div className={`h-4 w-4 rounded-full border-[3px] ${paymentMethod === 'stripe' ? 'border-blue-400' : 'border-slate-600'}`}></div>
+                                </button>
+
+                                <button
                                     onClick={() => setPaymentMethod('international')}
                                     className={`flex w-full items-center justify-between rounded-xl border p-4 text-left transition ${paymentMethod === 'international' ? 'border-indigo-500 bg-indigo-500/10' : 'border-slate-800 bg-slate-950 hover:bg-slate-800'}`}
                                 >
@@ -227,7 +244,7 @@ const Checkout: React.FC = () => {
                                             <Globe className="h-4 w-4" />
                                         </div>
                                         <div>
-                                            <span className="block font-bold text-white">International (USD/EUR)</span>
+                                            <span className="block font-bold text-white">International (PayPal)</span>
                                             <span className="text-xs text-gray-400">PayPal / Crypto via Discord</span>
                                         </div>
                                     </div>
@@ -245,7 +262,47 @@ const Checkout: React.FC = () => {
                         </>
                     ) : (
                         <>
-                            {paymentMethod === 'pix' ? (
+                            {paymentMethod === 'stripe' ? (
+                                <>
+                                    <div className="flex items-center gap-3 mb-5">
+                                        <div className="rounded-full bg-blue-400/10 p-3 text-blue-400">
+                                            <CreditCard className="h-6 w-6" />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-lg font-bold text-white">Card Payment</h2>
+                                            <p className="text-xs text-gray-400">Secure & encrypted by Stripe</p>
+                                        </div>
+                                    </div>
+                                    <div className="mb-4">
+                                        <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-gray-500">Email for order confirmation</label>
+                                        <input
+                                            type="email"
+                                            value={contactEmail}
+                                            onChange={(e) => setContactEmail(e.target.value)}
+                                            placeholder="youremail@example.com"
+                                            className="w-full rounded-lg border border-slate-700 bg-slate-950 p-3 text-sm text-white focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-500/50"
+                                        />
+                                    </div>
+                                    <StripePayment
+                                        amount={totalCartValue}
+                                        customerEmail={contactEmail}
+                                        customerName={user?.email?.split('@')[0] || 'Customer'}
+                                        onSuccess={async () => {
+                                            try {
+                                                const name = user?.email?.split('@')[0] || 'Customer';
+                                                const label = `${name} (${contactEmail || user?.email || 'stripe-customer'}) — Stripe Card`;
+                                                const chatId = await createChat(label, 'Stripe card payment confirmed', totalCartValue);
+                                                clearCart();
+                                                setCreatedChatId(chatId);
+                                                setStep('success');
+                                            } catch (err: any) {
+                                                alert('Pagamento confirmado, mas erro ao criar pedido: ' + err?.message);
+                                            }
+                                        }}
+                                        onError={(msg) => alert('Stripe error: ' + msg)}
+                                    />
+                                </>
+                            ) : paymentMethod === 'pix' ? (
                                 <>
                                     <h2 className="mb-2 text-xl font-bold text-white">Scan to Pay</h2>
                                     <p className="mb-6 text-sm text-gray-400">Open your banking app and scan the QR code or copy the Pix key below.</p>
