@@ -3,6 +3,27 @@ import { useStore } from '../store';
 import { ArrowLeft, Check, Copy, Loader2, MessageSquare, Upload, FileCheck, Globe } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
+// Compresses a base64 image to max 800px and quality 70% to avoid Supabase payload limits
+const compressImage = (base64: string, maxSize = 800, quality = 0.7): Promise<string> => {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let { width, height } = img;
+            if (width > maxSize || height > maxSize) {
+                if (width > height) { height = Math.round(height * maxSize / width); width = maxSize; }
+                else { width = Math.round(width * maxSize / height); height = maxSize; }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => resolve(base64); // fallback: use original if error
+        img.src = base64;
+    });
+};
+
 const Checkout: React.FC = () => {
     const { cart, totalCartValue, clearCart, createChat, isAuthenticated, user } = useStore();
     const navigate = useNavigate();
@@ -37,8 +58,10 @@ const Checkout: React.FC = () => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
             const reader = new FileReader();
-            reader.onloadend = () => {
-                setProofFile(reader.result as string);
+            reader.onloadend = async () => {
+                const raw = reader.result as string;
+                const compressed = await compressImage(raw);
+                setProofFile(compressed);
             };
             reader.readAsDataURL(file);
         }
@@ -63,30 +86,31 @@ const Checkout: React.FC = () => {
         const emailToDisplay = contactEmail || user?.email || "";
         const customerNameAndEmail = emailToDisplay ? `${baseName} (${emailToDisplay})` : baseName;
 
-        try {
-            await fetch('/api/email', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contactEmail: emailToDisplay,
-                    customerName: customerNameAndEmail,
-                    totalValue: totalCartValue,
-                    items: cart,
-                    method: paymentMethod
-                })
-            });
-        } catch (err) {
-            console.error("Failed to trigger emails", err);
-        }
+        // Fire email notification with 8s timeout — non-blocking, never stalls the checkout
+        const emailController = new AbortController();
+        const emailTimeout = setTimeout(() => emailController.abort(), 8000);
+        fetch('/api/email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: emailController.signal,
+            body: JSON.stringify({
+                contactEmail: emailToDisplay,
+                customerName: customerNameAndEmail,
+                totalValue: totalCartValue,
+                items: cart,
+                method: paymentMethod
+            })
+        }).catch(err => console.warn("Email API not available:", err))
+          .finally(() => clearTimeout(emailTimeout));
 
         try {
             const chatId = await createChat(customerNameAndEmail, proofFile || '', totalCartValue);
             setCreatedChatId(chatId);
             clearCart();
             setStep('success');
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed handling checkout:", error);
-            alert("Ocorreu um erro ao criar seu pedido. Verifique se a imagem do seu comprovante não é grande demais e tente novamente.");
+            alert("Erro ao criar pedido: " + (error?.message || "Tente novamente."));
         } finally {
             setSubmitting(false);
         }
