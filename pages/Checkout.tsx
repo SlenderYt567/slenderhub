@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useStore } from '../store';
 import { ArrowLeft, Check, Copy, Loader2, MessageSquare, Upload, FileCheck, Globe } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { PayPalButtons, usePayPalScriptReducer } from '@paypal/react-paypal-js';
 
 // Compresses a base64 image to max 800px and quality 70% to avoid Supabase payload limits
 const compressImage = (base64: string, maxSize = 800, quality = 0.7): Promise<string> => {
@@ -27,6 +28,7 @@ const compressImage = (base64: string, maxSize = 800, quality = 0.7): Promise<st
 const Checkout: React.FC = () => {
     const { cart, totalCartValue, clearCart, createChat, isAuthenticated, user } = useStore();
     const navigate = useNavigate();
+    const [{ isPending: paypalLoading }] = usePayPalScriptReducer();
     const [step, setStep] = useState<'review' | 'payment' | 'success'>('review');
     const [loading, setLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -332,31 +334,114 @@ const Checkout: React.FC = () => {
                                 </>
                             ) : (
                                 <>
-                                    <div className="flex flex-col items-center justify-center py-8 text-center">
-                                        <div className="mb-6 rounded-full bg-indigo-500/10 p-6 text-indigo-500">
-                                            <Globe className="h-16 w-16" />
+                                    <div className="flex flex-col py-4">
+                                        <div className="flex items-center gap-3 mb-6">
+                                            <div className="rounded-full bg-blue-500/10 p-3 text-blue-400">
+                                                <Globe className="h-6 w-6" />
+                                            </div>
+                                            <div>
+                                                <h2 className="text-lg font-bold text-white">Pay with PayPal</h2>
+                                                <p className="text-xs text-gray-400">Secure payment — accepts cards, PayPal balance & more</p>
+                                            </div>
                                         </div>
-                                        <h2 className="mb-4 text-2xl font-bold text-white">International Payment</h2>
-                                        <p className="mb-8 max-w-md text-gray-400">
-                                            To pay with USD, Euro, or Crypto, please join our Discord server or click "Create Order" below to chat with an admin.
-                                        </p>
 
-                                        <a
-                                            href="https://discord.gg/E3xsUmtx"
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="mb-4 w-full text-center rounded-xl bg-[#5865F2] py-4 font-bold text-white transition hover:bg-[#4752C4]"
-                                        >
-                                            Join Discord Server
-                                        </a>
+                                        {/* Order summary before PayPal */}
+                                        <div className="mb-4 rounded-xl border border-slate-700 bg-slate-950 p-4 text-sm">
+                                            {cart.map(item => (
+                                                <div key={item.id} className="flex justify-between py-1 text-gray-300">
+                                                    <span>{item.title} {item.selectedVariant ? `— ${item.selectedVariant.name}` : ''} <span className="text-gray-500">x{item.quantity}</span></span>
+                                                    <span>${(item.price * item.quantity).toFixed(2)}</span>
+                                                </div>
+                                            ))}
+                                            <div className="mt-3 border-t border-slate-700 pt-3 flex justify-between font-bold text-white">
+                                                <span>Total</span>
+                                                <span className="text-blue-400">${totalCartValue.toFixed(2)} USD</span>
+                                            </div>
+                                        </div>
 
-                                        <button
-                                            onClick={handleFinish}
-                                            disabled={submitting}
-                                            className="w-full flex justify-center items-center gap-2 rounded-xl border border-slate-700 bg-blue-600 py-4 font-bold text-white transition hover:bg-blue-500 disabled:opacity-50"
-                                        >
-                                            {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Create Order & Chat with Admin'}
-                                        </button>
+                                        {/* Contact email for PayPal */}
+                                        <div className="mb-4">
+                                            <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-gray-500">Your Email (for order confirmation)</label>
+                                            <input
+                                                type="email"
+                                                value={contactEmail}
+                                                onChange={(e) => setContactEmail(e.target.value)}
+                                                placeholder="youremail@example.com"
+                                                className="w-full rounded-lg border border-slate-700 bg-slate-950 p-3 text-sm text-white focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-500/50"
+                                            />
+                                        </div>
+
+                                        {/* PayPal Buttons */}
+                                        {paypalLoading ? (
+                                            <div className="flex justify-center py-6">
+                                                <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+                                            </div>
+                                        ) : (
+                                            <PayPalButtons
+                                                style={{ layout: 'vertical', color: 'blue', shape: 'rect', label: 'pay' }}
+                                                disabled={cart.length === 0}
+                                                createOrder={(_data, actions) => {
+                                                    return actions.order.create({
+                                                        intent: 'CAPTURE',
+                                                        purchase_units: [{
+                                                            amount: {
+                                                                currency_code: 'USD',
+                                                                value: totalCartValue.toFixed(2),
+                                                                breakdown: {
+                                                                    item_total: {
+                                                                        currency_code: 'USD',
+                                                                        value: totalCartValue.toFixed(2)
+                                                                    }
+                                                                }
+                                                            },
+                                                            items: cart.map(item => ({
+                                                                name: item.title + (item.selectedVariant ? ` - ${item.selectedVariant.name}` : ''),
+                                                                unit_amount: {
+                                                                    currency_code: 'USD',
+                                                                    value: item.price.toFixed(2)
+                                                                },
+                                                                quantity: String(item.quantity)
+                                                            }))
+                                                        }]
+                                                    });
+                                                }}
+                                                onApprove={async (_data, actions) => {
+                                                    setSubmitting(true);
+                                                    try {
+                                                        const details = await actions.order!.capture();
+                                                        const payerEmail = details.payer?.email_address || contactEmail || 'paypal-customer';
+                                                        const payerName = details.payer?.name?.given_name || user?.email?.split('@')[0] || 'Customer';
+                                                        const customerLabel = `${payerName} (${payerEmail}) — PayPal`;
+                                                        const orderId = details.id || '';
+                                                        const chatId = await createChat(customerLabel, `PayPal Order ID: ${orderId}`, totalCartValue);
+                                                        clearCart();
+                                                        setCreatedChatId(chatId);
+                                                        setStep('success');
+                                                    } catch (err: any) {
+                                                        console.error('PayPal capture error', err);
+                                                        alert('Erro ao processar pagamento: ' + (err?.message || 'Tente novamente.'));
+                                                    } finally {
+                                                        setSubmitting(false);
+                                                    }
+                                                }}
+                                                onError={(err) => {
+                                                    console.error('PayPal error', err);
+                                                    alert('Erro no PayPal. Tente novamente ou use outro método.');
+                                                }}
+                                            />
+                                        )}
+
+                                        <div className="mt-4 border-t border-slate-800 pt-4 text-center">
+                                            <p className="text-xs text-gray-500 mb-2">Prefer other options?</p>
+                                            <a
+                                                href="https://discord.gg/E3xsUmtx"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-2 text-xs text-indigo-400 hover:text-indigo-300 transition"
+                                            >
+                                                <Globe className="h-3 w-3" /> Pay with Crypto via Discord
+                                            </a>
+                                        </div>
                                     </div>
                                 </>
                             )}

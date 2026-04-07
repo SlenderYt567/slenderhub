@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@paypal/react-paypal-js": "^9.1.0",
     "@supabase/supabase-js": "^2.90.1",
     "lucide-react": "^0.562.0",
     "nodemailer": "^8.0.4",
