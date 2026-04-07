@@ -6,13 +6,13 @@ import { Send, User, ShieldAlert, Lock, ArrowLeft, Clock, CheckCircle } from 'lu
 const ChatRoom: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { chats, messages, sendMessage, closeChat, verifyPayment, isAuthenticated, user } = useStore();
+  const { chats, messages, sendMessage, closeChat, verifyPayment, isAuthenticated, isAdmin, user } = useStore();
   const [inputText, setInputText] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const chatSession = chats.find(c => c.id === id);
   const chatMessages = messages.filter(m => m.chatId === id);
-  const role = isAuthenticated ? 'admin' : 'user';
+  const role = isAdmin ? 'admin' : 'user';
 
   useEffect(() => {
     if (bottomRef.current) {

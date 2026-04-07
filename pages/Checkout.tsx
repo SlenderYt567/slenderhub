@@ -59,15 +59,17 @@ const Checkout: React.FC = () => {
         setSubmitting(true);
 
         // Use user's email/name if available
-        const customerName = user?.email?.split('@')[0] || "Customer";
+        const baseName = user?.email?.split('@')[0] || "Customer";
+        const emailToDisplay = contactEmail || user?.email || "";
+        const customerNameAndEmail = emailToDisplay ? `${baseName} (${emailToDisplay})` : baseName;
 
         try {
             await fetch('/api/email', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    contactEmail: contactEmail || user?.email,
-                    customerName,
+                    contactEmail: emailToDisplay,
+                    customerName: customerNameAndEmail,
                     totalValue: totalCartValue,
                     items: cart,
                     method: paymentMethod
@@ -78,7 +80,7 @@ const Checkout: React.FC = () => {
         }
 
         try {
-            const chatId = await createChat(customerName, proofFile || '', totalCartValue);
+            const chatId = await createChat(customerNameAndEmail, proofFile || '', totalCartValue);
             setCreatedChatId(chatId);
             clearCart();
             setStep('success');
