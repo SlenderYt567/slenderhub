@@ -13,6 +13,8 @@ const Checkout: React.FC = () => {
     const [proofFile, setProofFile] = useState<string | null>(null);
     const [createdChatId, setCreatedChatId] = useState<string | null>(null);
     const [paymentMethod, setPaymentMethod] = useState<'pix' | 'international'>('pix');
+    const [contactEmail, setContactEmail] = useState(user?.email || '');
+    const [emailError, setEmailError] = useState(false);
 
     // Specific Pix Key
     const pixCode = "c8e4e850-c45d-4660-a2f1-44d8cf3aaf0f";
@@ -43,14 +45,37 @@ const Checkout: React.FC = () => {
         }
     };
 
-    const handleFinish = () => {
+    const handleFinish = async () => {
         if (!proofFile && paymentMethod === 'pix') {
             alert("Please upload the payment proof to continue.");
             return;
         }
+
+        if (paymentMethod === 'pix' && (!contactEmail || !contactEmail.includes('@'))) {
+            setEmailError(true);
+            return;
+        }
+
         // Use user's email/name if available
         const customerName = user?.email?.split('@')[0] || "Customer";
-        const chatId = createChat(customerName, proofFile || '', totalCartValue);
+
+        try {
+            await fetch('/api/email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contactEmail: contactEmail || user?.email,
+                    customerName,
+                    totalValue: totalCartValue,
+                    items: cart,
+                    method: paymentMethod
+                })
+            });
+        } catch (err) {
+            console.error("Failed to trigger emails", err);
+        }
+
+        const chatId = await createChat(customerName, proofFile || '', totalCartValue);
         setCreatedChatId(chatId);
         clearCart();
         setStep('success');
@@ -222,6 +247,21 @@ const Checkout: React.FC = () => {
                                                 {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                                             </button>
                                         </div>
+                                    </div>
+
+                                    <div className="mb-6">
+                                        <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-gray-500">Contact Email (For Delivery) *</label>
+                                        <input
+                                            type="email"
+                                            value={contactEmail}
+                                            onChange={(e) => {
+                                                setContactEmail(e.target.value);
+                                                if (emailError) setEmailError(false);
+                                            }}
+                                            placeholder="youremail@example.com"
+                                            className={`w-full rounded-lg border bg-slate-950 p-3 text-sm text-white focus:outline-none focus:ring-2 ${emailError ? 'border-red-500 focus:ring-red-500/50' : 'border-slate-700 focus:border-blue-500 focus:ring-blue-500/50'}`}
+                                        />
+                                        {emailError && <p className="mt-1 text-xs text-red-500">Please provide a valid email.</p>}
                                     </div>
 
                                     <div className="mb-6 rounded-xl border border-dashed border-slate-700 bg-slate-900/50 p-6 text-center">
