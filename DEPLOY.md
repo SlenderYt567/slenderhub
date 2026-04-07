@@ -20,8 +20,8 @@ Na página de configuração do projeto, adicione as seguintes variáveis de amb
 
 **Environment Variables:**
 ```
-VITE_SUPABASE_URL=https://rrqzpzczhvzrrdsjzqgb.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJycXpwemN6aHZ6cnJkc2p6cWdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgxNjUxNjEsImV4cCI6MjA4Mzc0MTE2MX0.9iMKLDpfwRDM1vP4gEV5IsS1rA4bNsRk08MzW0FAOxM
+VITE_SUPABASE_URL=https://pypfcdczatmsnqjuggiq.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_f6NUOpZVZwHxqe0Meivd-w_7zs3cj4b
 ```
 
 ### 3. Configurações de Build
