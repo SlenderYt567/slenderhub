@@ -11,7 +11,7 @@ const Contact: React.FC = () => {
 
       <div className="mt-16 grid grid-cols-1 gap-8 sm:grid-cols-2">
         <a 
-          href="https://discord.gg/E3xsUmtx" 
+          href="https://discord.gg/2B8TQ7A3MV" 
           target="_blank" 
           rel="noopener noreferrer"
           className="group flex flex-col items-center rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center transition hover:border-blue-500 hover:bg-slate-800"
@@ -44,7 +44,7 @@ const Contact: React.FC = () => {
                 <h3 className="text-xl font-bold text-white">International Purchases (USD/EUR)</h3>
                 <p className="mt-2 text-gray-300">
                     If you are outside Brazil and cannot use Pix, please open a ticket in our 
-                    <a href="https://discord.gg/E3xsUmtx" target="_blank" rel="noopener noreferrer" className="mx-1 font-bold text-indigo-400 hover:underline">Discord Server</a>.
+                    <a href="https://discord.gg/2B8TQ7A3MV" target="_blank" rel="noopener noreferrer" className="mx-1 font-bold text-indigo-400 hover:underline">Discord Server</a>.
                 </p>
                 <p className="mt-1 text-sm text-gray-400">
                     We accept PayPal, Crypto, and other international methods via manual support tickets.

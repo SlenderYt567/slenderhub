@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store';
-import { ArrowLeft, Check, Copy, Loader2, MessageSquare, Upload, FileCheck, Globe, CreditCard } from 'lucide-react';
+import { ArrowLeft, Check, Copy, Loader2, MessageSquare, Upload, FileCheck, Globe, HelpCircle } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PayPalButtons, usePayPalScriptReducer } from '@paypal/react-paypal-js';
-import StripePayment from '../components/StripePayment';
 
 // Compresses a base64 image to max 800px and quality 70% to avoid Supabase payload limits
 const compressImage = (base64: string, maxSize = 800, quality = 0.7): Promise<string> => {
@@ -27,7 +26,7 @@ const compressImage = (base64: string, maxSize = 800, quality = 0.7): Promise<st
 };
 
 const Checkout: React.FC = () => {
-    const { cart, totalCartValue, clearCart, createChat, isAuthenticated, user } = useStore();
+    const { cart, totalCartValue, clearCart, createChat, isAuthenticated, user, formatPrice, exchangeRate, currency } = useStore();
     const navigate = useNavigate();
     const [{ isPending: paypalLoading }] = usePayPalScriptReducer();
     const [step, setStep] = useState<'review' | 'payment' | 'success'>('review');
@@ -36,7 +35,7 @@ const Checkout: React.FC = () => {
     const [copied, setCopied] = useState(false);
     const [proofFile, setProofFile] = useState<string | null>(null);
     const [createdChatId, setCreatedChatId] = useState<string | null>(null);
-    const [paymentMethod, setPaymentMethod] = useState<'pix' | 'international' | 'stripe'>('pix');
+    const [paymentMethod, setPaymentMethod] = useState<'pix' | 'international'>('pix');
     const [contactEmail, setContactEmail] = useState(user?.email || '');
     const [emailError, setEmailError] = useState(false);
 
@@ -145,7 +144,7 @@ const Checkout: React.FC = () => {
                 <p className="mb-8 max-w-md text-gray-400">
                     {paymentMethod === 'pix'
                         ? "We have received your payment proof. An admin will verify it shortly."
-                        : "Please proceed to our support chat or Discord to finalize your international payment."}
+                        : "Payment confirmed! Check your email or open the support chat below."}
                 </p>
 
                 <div className="flex flex-col gap-4 w-full max-w-xs">
@@ -156,6 +155,15 @@ const Checkout: React.FC = () => {
                         <MessageSquare className="h-5 w-5" />
                         Open Support Chat
                     </button>
+                    <a
+                        href="https://discord.gg/2B8TQ7A3MV"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 rounded-xl border border-indigo-500/50 bg-indigo-500/10 px-8 py-3.5 font-bold text-indigo-400 hover:bg-indigo-500/20 transition"
+                    >
+                        <Globe className="h-5 w-5" />
+                        Join Our Discord
+                    </a>
                     <Link to="/" className="rounded-xl border border-slate-700 bg-slate-900 px-8 py-3.5 font-bold text-white hover:bg-slate-800 transition">
                         Back to Store
                     </Link>
@@ -187,13 +195,29 @@ const Checkout: React.FC = () => {
                                         <span className="text-xs text-blue-400">{item.selectedVariant.name}</span>
                                     )}
                                 </div>
-                                <span className="font-medium text-white">${(item.price * item.quantity).toFixed(2)}</span>
+                                <span className="font-medium text-white">
+                                    {formatPrice(item.price * item.quantity)}
+                                </span>
                             </div>
                         ))}
                         <div className="border-t border-slate-800 pt-4">
-                            <div className="flex justify-between text-lg font-bold">
-                                <span className="text-white">Total</span>
-                                <span className="text-blue-400">${totalCartValue.toFixed(2)}</span>
+                            <div className="flex flex-col gap-1">
+                                <div className="flex justify-between text-lg font-bold">
+                                    <span className="text-white">Total</span>
+                                    <span className="text-blue-400">{formatPrice(totalCartValue)}</span>
+                                </div>
+                                {currency === 'USD' && (
+                                    <div className="flex justify-between text-xs text-gray-500">
+                                        <span>Approx. BRL</span>
+                                        <span>R$ {(totalCartValue * exchangeRate).toFixed(2)}</span>
+                                    </div>
+                                )}
+                                {currency === 'BRL' && (
+                                    <div className="flex justify-between text-xs text-gray-500">
+                                        <span>Value in USD</span>
+                                        <span>${totalCartValue.toFixed(2)}</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -213,26 +237,10 @@ const Checkout: React.FC = () => {
                                         <div className="h-8 w-12 rounded bg-white/10 flex items-center justify-center text-[10px] font-bold">PIX</div>
                                         <div>
                                             <span className="block font-bold text-white">Pay with Pix (Brazil)</span>
-                                            <span className="text-xs text-gray-400">Instant Approval</span>
+                                            <span className="text-xs text-gray-400">Total: R$ {(totalCartValue * exchangeRate).toFixed(2)}</span>
                                         </div>
                                     </div>
                                     <div className={`h-4 w-4 rounded-full border-[3px] ${paymentMethod === 'pix' ? 'border-blue-500' : 'border-slate-600'}`}></div>
-                                </button>
-
-                                <button
-                                    onClick={() => setPaymentMethod('stripe')}
-                                    className={`flex w-full items-center justify-between rounded-xl border p-4 text-left transition ${paymentMethod === 'stripe' ? 'border-blue-400 bg-blue-400/10' : 'border-slate-800 bg-slate-950 hover:bg-slate-800'}`}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-8 w-12 rounded bg-white/10 flex items-center justify-center">
-                                            <CreditCard className="h-4 w-4" />
-                                        </div>
-                                        <div>
-                                            <span className="block font-bold text-white">Credit / Debit Card</span>
-                                            <span className="text-xs text-gray-400">Visa, Mastercard, Amex — via Stripe</span>
-                                        </div>
-                                    </div>
-                                    <div className={`h-4 w-4 rounded-full border-[3px] ${paymentMethod === 'stripe' ? 'border-blue-400' : 'border-slate-600'}`}></div>
                                 </button>
 
                                 <button
@@ -245,11 +253,29 @@ const Checkout: React.FC = () => {
                                         </div>
                                         <div>
                                             <span className="block font-bold text-white">International (PayPal)</span>
-                                            <span className="text-xs text-gray-400">PayPal / Crypto via Discord</span>
+                                            <span className="text-xs text-gray-400">Total: ${totalCartValue.toFixed(2)} USD</span>
                                         </div>
                                     </div>
                                     <div className={`h-4 w-4 rounded-full border-[3px] ${paymentMethod === 'international' ? 'border-indigo-500' : 'border-slate-600'}`}></div>
                                 </button>
+                                
+                                <div className="mt-4 rounded-xl bg-slate-900/50 p-4 border border-slate-800">
+                                    <div className="flex items-start gap-3">
+                                        <HelpCircle className="h-5 w-5 text-blue-400 shrink-0 mt-0.5" />
+                                        <div>
+                                            <p className="text-xs font-medium text-gray-300">Need help with payment?</p>
+                                            <p className="text-[10px] text-gray-500 mt-1">Contact us on Discord for support or manual payment methods.</p>
+                                            <a 
+                                                href="https://discord.gg/2B8TQ7A3MV" 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                className="text-[10px] text-blue-400 hover:underline mt-1 inline-block"
+                                            >
+                                                Open Discord Support
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             <button
@@ -262,47 +288,7 @@ const Checkout: React.FC = () => {
                         </>
                     ) : (
                         <>
-                            {paymentMethod === 'stripe' ? (
-                                <>
-                                    <div className="flex items-center gap-3 mb-5">
-                                        <div className="rounded-full bg-blue-400/10 p-3 text-blue-400">
-                                            <CreditCard className="h-6 w-6" />
-                                        </div>
-                                        <div>
-                                            <h2 className="text-lg font-bold text-white">Card Payment</h2>
-                                            <p className="text-xs text-gray-400">Secure & encrypted by Stripe</p>
-                                        </div>
-                                    </div>
-                                    <div className="mb-4">
-                                        <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-gray-500">Email for order confirmation</label>
-                                        <input
-                                            type="email"
-                                            value={contactEmail}
-                                            onChange={(e) => setContactEmail(e.target.value)}
-                                            placeholder="youremail@example.com"
-                                            className="w-full rounded-lg border border-slate-700 bg-slate-950 p-3 text-sm text-white focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-500/50"
-                                        />
-                                    </div>
-                                    <StripePayment
-                                        amount={totalCartValue}
-                                        customerEmail={contactEmail}
-                                        customerName={user?.email?.split('@')[0] || 'Customer'}
-                                        onSuccess={async () => {
-                                            try {
-                                                const name = user?.email?.split('@')[0] || 'Customer';
-                                                const label = `${name} (${contactEmail || user?.email || 'stripe-customer'}) — Stripe Card`;
-                                                const chatId = await createChat(label, 'Stripe card payment confirmed', totalCartValue);
-                                                clearCart();
-                                                setCreatedChatId(chatId);
-                                                setStep('success');
-                                            } catch (err: any) {
-                                                alert('Pagamento confirmado, mas erro ao criar pedido: ' + err?.message);
-                                            }
-                                        }}
-                                        onError={(msg) => alert('Stripe error: ' + msg)}
-                                    />
-                                </>
-                            ) : paymentMethod === 'pix' ? (
+                            {paymentMethod === 'pix' ? (
                                 <>
                                     <h2 className="mb-2 text-xl font-bold text-white">Scan to Pay</h2>
                                     <p className="mb-6 text-sm text-gray-400">Open your banking app and scan the QR code or copy the Pix key below.</p>
@@ -407,12 +393,18 @@ const Checkout: React.FC = () => {
                                             {cart.map(item => (
                                                 <div key={item.id} className="flex justify-between py-1 text-gray-300">
                                                     <span>{item.title} {item.selectedVariant ? `— ${item.selectedVariant.name}` : ''} <span className="text-gray-500">x{item.quantity}</span></span>
-                                                    <span>${(item.price * item.quantity).toFixed(2)}</span>
+                                                    <span>{formatPrice(item.price * item.quantity)}</span>
                                                 </div>
                                             ))}
-                                            <div className="mt-3 border-t border-slate-700 pt-3 flex justify-between font-bold text-white">
-                                                <span>Total</span>
-                                                <span className="text-blue-400">${totalCartValue.toFixed(2)} USD</span>
+                                            <div className="mt-3 border-t border-slate-700 pt-3 flex flex-col gap-1 font-bold text-white">
+                                                <div className="flex justify-between">
+                                                    <span>Total</span>
+                                                    <span className="text-blue-400">${totalCartValue.toFixed(2)} USD</span>
+                                                </div>
+                                                <div className="flex justify-between text-xs text-gray-500">
+                                                    <span>BRL Equivalent</span>
+                                                    <span>R$ {(totalCartValue * exchangeRate).toFixed(2)}</span>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -491,7 +483,7 @@ const Checkout: React.FC = () => {
                                         <div className="mt-4 border-t border-slate-800 pt-4 text-center">
                                             <p className="text-xs text-gray-500 mb-2">Prefer other options?</p>
                                             <a
-                                                href="https://discord.gg/E3xsUmtx"
+                                                href="https://discord.gg/2B8TQ7A3MV"
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="inline-flex items-center gap-2 text-xs text-indigo-400 hover:text-indigo-300 transition"
