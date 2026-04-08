@@ -13,7 +13,7 @@ const Home: React.FC = () => {
     const categories = new Set<string>(products.map(p => p.category));
     // Ensure 'script', 'item', 'premium' are always first if they exist, purely for visual consistency,
     // but append any new custom ones.
-    const defaultOrder = ['script', 'item', 'premium'];
+    const defaultOrder = ['script', 'item', 'gamepass', 'premium'];
     const sorted = Array.from(categories).sort((a, b) => {
         const idxA = defaultOrder.indexOf(a);
         const idxB = defaultOrder.indexOf(b);

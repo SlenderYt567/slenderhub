@@ -12,6 +12,7 @@ import ProductDetails from './pages/ProductDetails';
 import Checkout from './pages/Checkout';
 import ChatRoom from './pages/ChatRoom';
 import Contact from './pages/Contact';
+import Obfuscator from './pages/Obfuscator';
 import { StoreProvider } from './store';
 
 const PAYPAL_CLIENT_ID = 'AdCW0tDanq77aiKHYBeikcyVMfgjcovBf5IB3OLF-y-Et1TeXaAsuVs08NnXPbfn5WAT6eHYv15itizq';
@@ -35,6 +36,7 @@ function App() {
                 <Route path="/checkout" element={<Checkout />} />
                 <Route path="/chat/:id" element={<ChatRoom />} />
                 <Route path="/contact" element={<Contact />} />
+                <Route path="/obfuscator" element={<Obfuscator />} />
               </Routes>
             </div>
             <footer className="border-t border-slate-900 bg-[#020617] py-8 text-center text-sm text-gray-600">

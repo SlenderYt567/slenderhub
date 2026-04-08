@@ -1,10 +1,10 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, ShieldCheck, LogIn, LogOut, PlusCircle, Globe, Mail, LayoutDashboard, RefreshCcw } from 'lucide-react';
+import { ShoppingCart, ShieldCheck, LogIn, LogOut, PlusCircle, Globe, Mail, LayoutDashboard, RefreshCcw, Lock, Zap } from 'lucide-react';
 import { useStore } from '../store';
 
 const Navbar: React.FC = () => {
-  const { cart, isAuthenticated, isAdmin, logout, currency, setCurrency } = useStore();
+  const { cart, isAuthenticated, isAdmin, logout, currency, setCurrency, credits } = useStore();
   const location = useLocation();
   const navigate = useNavigate();
   const itemCount = cart.reduce((acc, item) => acc + item.quantity, 0);
@@ -39,6 +39,9 @@ const Navbar: React.FC = () => {
           <Link to="/contact" className={`hidden text-sm font-medium transition md:block ${isActive('/contact')}`}>
             Contact
           </Link>
+          <Link to="/obfuscator" className={`hidden text-sm font-medium transition md:block ${isActive('/obfuscator')}`}>
+            Ofuscador
+          </Link>
           {isAdmin && (
             <>
               <Link to="/admin-dashboard" className={`hidden text-sm font-medium transition md:block ${isActive('/admin-dashboard')}`}>
@@ -60,6 +63,13 @@ const Navbar: React.FC = () => {
             <Globe className="h-3 w-3" />
             {currency}
           </button>
+
+          {isAuthenticated && (
+            <div className="hidden items-center gap-1.5 rounded-full bg-blue-500/10 px-3 py-1.5 text-xs font-bold text-blue-400 sm:flex ring-1 ring-blue-500/20">
+              <Zap className="h-3 w-3" />
+              {credits} CR
+            </div>
+          )}
 
           {isAuthenticated ? (
             <div className="flex items-center gap-4">
