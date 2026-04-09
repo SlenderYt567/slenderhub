@@ -54,8 +54,13 @@ const Obfuscator: React.FC = () => {
             clearTimeout(timeoutId);
 
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || `Erro do servidor: ${response.status}`);
+                const errorText = await response.text().catch(() => '');
+                let errorMessage = `Erro do servidor: ${response.status}`;
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    errorMessage = errorJson.error || errorMessage;
+                } catch (e) {}
+                throw new Error(errorMessage);
             }
 
             const data = await response.json();
