@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useStore } from '../store';
 import { Lock, Zap, Copy, Check, Loader2, AlertCircle, Terminal, HelpCircle, Shield, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { supabase } from '../lib/supabaseClient';
 
 const Obfuscator: React.FC = () => {
     const { user, credits, refreshProfile, isAuthenticated, isAdminProfile } = useStore();
@@ -35,9 +36,15 @@ const Obfuscator: React.FC = () => {
         const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
         try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+
             const response = await fetch('/api/obfuscate', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': token ? `Bearer ${token}` : ''
+                },
                 body: JSON.stringify({ 
                     code: inputCode, 
                     userId: user?.id 

@@ -57,6 +57,7 @@ export default async function handler(request: Request) {
     }
 
     try {
+        const authHeader = request.headers.get('Authorization');
         const body = await request.json();
         const { code, userId } = body;
 
@@ -67,7 +68,13 @@ export default async function handler(request: Request) {
             });
         }
 
-        const supabase = createClient(supabaseUrl, supabaseKey);
+        const supabase = createClient(supabaseUrl, supabaseKey, {
+            global: {
+                headers: {
+                    Authorization: authHeader || ''
+                }
+            }
+        });
 
         // 1. Verificar créditos e admin status
         const { data: profile, error: profileError } = await supabase
