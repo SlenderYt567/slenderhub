@@ -4,8 +4,7 @@
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "rewrites": [
-    { "source": "/api/obfuscate", "destination": "/api/obfuscate.ts" },
-    { "source": "/api/email", "destination": "/api/email.ts" },
+    { "source": "/api/ping", "destination": "/api/ping.ts" },
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]

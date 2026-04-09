@@ -32,10 +32,6 @@ interface StoreContextType {
   setCurrency: (currency: Currency) => void;
   exchangeRate: number;
   formatPrice: (priceInUsd: number) => string;
-  // Credits & Profile
-  credits: number;
-  isAdminProfile: boolean;
-  refreshProfile: () => Promise<void>;
   // Global Loading
   loading: boolean;
 }
@@ -47,8 +43,6 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [cart, setCart] = useState<CartItem[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
-  const [credits, setCredits] = useState(0);
-  const [isAdminProfile, setIsAdminProfile] = useState(false);
 
   // Currency State
   const [currency, setCurrency] = useState<Currency>('USD');
@@ -91,24 +85,11 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   useEffect(() => {
     if (user) {
       refreshProfile();
-    } else {
-        setCredits(0);
-        setIsAdminProfile(false);
     }
   }, [user]);
 
   const refreshProfile = async () => {
-    if (!user) return;
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('credits, is_admin')
-      .eq('id', user.id)
-      .single();
-
-    if (data && !error) {
-      setCredits(data.credits);
-      setIsAdminProfile(data.is_admin);
-    }
+    // Legacy profile refresh logic removed
   };
 
   const fetchProducts = async () => {
@@ -474,9 +455,6 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setCurrency,
         exchangeRate,
         formatPrice,
-        credits,
-        isAdminProfile,
-        refreshProfile,
         loading
       }}
     >

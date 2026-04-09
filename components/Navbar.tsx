@@ -1,10 +1,10 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, ShieldCheck, LogIn, LogOut, PlusCircle, Globe, Mail, LayoutDashboard, RefreshCcw, Lock, Zap } from 'lucide-react';
+import { ShoppingCart, ShieldCheck, LogIn, LogOut, PlusCircle, Globe, Mail, LayoutDashboard, RefreshCcw, Lock } from 'lucide-react';
 import { useStore } from '../store';
 
 const Navbar: React.FC = () => {
-  const { cart, isAuthenticated, isAdmin, logout, currency, setCurrency, credits } = useStore();
+  const { cart, isAuthenticated, isAdmin, logout, currency, setCurrency } = useStore();
   const location = useLocation();
   const navigate = useNavigate();
   const itemCount = cart.reduce((acc, item) => acc + item.quantity, 0);
