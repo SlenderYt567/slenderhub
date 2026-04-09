@@ -31,6 +31,9 @@ const Obfuscator: React.FC = () => {
         setError(null);
         setOutputCode('');
 
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
         try {
             const response = await fetch('/api/obfuscate', {
                 method: 'POST',
@@ -38,8 +41,10 @@ const Obfuscator: React.FC = () => {
                 body: JSON.stringify({ 
                     code: inputCode, 
                     userId: user?.id 
-                })
+                }),
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
@@ -55,7 +60,11 @@ const Obfuscator: React.FC = () => {
                 setError(data.error || 'Erro ao ofuscar o código.');
             }
         } catch (err: any) {
-            setError(err.message || 'Falha na comunicação com o servidor.');
+            if (err.name === 'AbortError') {
+                setError('A requisição demorou muito. Tente um código menor ou verifique sua conexão.');
+            } else {
+                setError(err.message || 'Falha na comunicação com o servidor.');
+            }
         } finally {
             setLoading(false);
         }

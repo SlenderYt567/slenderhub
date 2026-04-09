@@ -19,7 +19,7 @@ const obfuscateLua = (code: string): string => {
     return `${quote}${escaped}${quote}`;
   });
 
-  // 3. Renomeação de Variáveis Locais (Básico)
+  // 3. Renomeação de Variáveis Locais (Otimizado)
   const localVars = new Set<string>();
   const localRegex = /local\s+([a-zA-Z_][a-zA-Z0-9_]*)/g;
   let match;
@@ -35,10 +35,11 @@ const obfuscateLua = (code: string): string => {
     varMap.set(v, randomName);
   });
 
-  varMap.forEach((newName, oldName) => {
-    const regex = new RegExp(`\\b${oldName}\\b`, 'g');
-    result = result.replace(regex, newName);
-  });
+  // Única passagem pelo código para renomear todas as variáveis
+  if (localVars.size > 0) {
+      const allVarsRegex = new RegExp(`\\b(${Array.from(localVars).join('|')})\\b`, 'g');
+      result = result.replace(allVarsRegex, (m) => varMap.get(m) || m);
+  }
 
   // 4. Minificação básica
   result = result.replace(/\s+/g, ' ').trim();
