@@ -1,14 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Lógica de ofuscação movida para dentro da API para compatibilidade total com Vercel
+// Motor de ofuscação (Execução instantânea local)
 const obfuscateLua = (code: string): string => {
   let result = code;
-
-  // 1. Remover Comentários
   result = result.replace(/--\[\[[\s\S]*?\]\]/g, ''); 
   result = result.replace(/--.*$/gm, '');             
 
-  // 2. Proteção de Strings (Hex Escape)
   result = result.replace(/(["'])(?:(?=(\\?))\2.)*?\1/g, (match) => {
     const quote = match[0];
     const content = match.slice(1, -1);
@@ -19,7 +16,6 @@ const obfuscateLua = (code: string): string => {
     return `${quote}${escaped}${quote}`;
   });
 
-  // 3. Renomeação de Variáveis Locais (Otimizado)
   const localVars = new Set<string>();
   const localRegex = /local\s+([a-zA-Z_][a-zA-Z0-9_]*)/g;
   let match;
@@ -29,102 +25,73 @@ const obfuscateLua = (code: string): string => {
     }
   }
 
-  const varMap = new Map<string, string>();
-  localVars.forEach(v => {
-    const randomName = 'slender_' + Math.random().toString(36).substring(2, 10);
-    varMap.set(v, randomName);
-  });
-
-  // Única passagem pelo código para renomear todas as variáveis
   if (localVars.size > 0) {
+      const varMap = new Map<string, string>();
+      localVars.forEach(v => {
+        varMap.set(v, 'slender_' + Math.random().toString(36).substring(2, 10));
+      });
       const allVarsRegex = new RegExp(`\\b(${Array.from(localVars).join('|')})\\b`, 'g');
       result = result.replace(allVarsRegex, (m) => varMap.get(m) || m);
   }
 
-  // 4. Minificação básica
   result = result.replace(/\s+/g, ' ').trim();
-
-  const header = `-- Obfuscated by SlenderHub (Beta)\n-- Date: ${new Date().toLocaleDateString()}\n`;
-  return header + result;
+  return `-- Obfuscated by SlenderHub (Beta)\n-- Date: ${new Date().toLocaleDateString()}\n` + result;
 };
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://pypfcdczatmsnqjuggiq.supabase.co';
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_f6NUOpZVZwHxqe0Meivd-w_7zs3cj4b';
 
 export default async function handler(request: Request) {
-    if (request.method !== 'POST') {
-        return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405 });
-    }
+    if (request.method !== 'POST') return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405 });
 
     try {
         const authHeader = request.headers.get('Authorization');
         const body = await request.json();
         const { code, userId } = body;
 
-        if (!code || !userId) {
-            return new Response(JSON.stringify({ error: 'Código e ID do usuário são obrigatórios.' }), {
-                status: 400,
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
+        if (!code || !userId) return new Response(JSON.stringify({ error: 'Faltam dados.' }), { status: 400 });
 
-        const supabase = createClient(supabaseUrl, supabaseKey, {
-            global: {
-                headers: {
-                    Authorization: authHeader || ''
-                }
-            }
-        });
-
-        // 1. Verificar créditos e admin status
-        const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('credits, is_admin')
-            .eq('id', userId)
-            .single();
-
-        if (profileError || !profile) {
-            return new Response(JSON.stringify({ error: 'Perfil não encontrado no banco de dados.' }), {
-                status: 404,
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
-
-        const isAdmin = profile.is_admin;
-        const currentCredits = profile.credits;
-
-        if (!isAdmin && currentCredits <= 0) {
-            return new Response(JSON.stringify({ error: 'Créditos insuficientes. Adquira mais na loja.' }), {
-                status: 403,
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
-
-        // 2. Ofuscar
+        // 1. OFUSCAR PRIMEIRO (Prioridade máxima, não depende de banco de dados)
+        // Isso garante que se o DB estiver lento, a ofuscação já ocorreu e está na memória.
         const obfuscatedCode = obfuscateLua(code);
 
-        // 3. Deduzir crédito (se não for admin)
-        if (!isAdmin) {
-            await supabase
-                .from('profiles')
-                .update({ credits: currentCredits - 1 })
-                .eq('id', userId);
+        // 2. CONEXÃO COM BANCO (TIMEOUT DE 5 SEGUNDOS PARA DB)
+        // Se o Supabase demorar mais de 5s, vamos assumir que deu erro para não travar a Vercel.
+        const supabase = createClient(supabaseUrl, supabaseKey, {
+            global: { headers: { Authorization: authHeader || '' } },
+            auth: { persistSession: false } 
+        });
+
+        // Verificação rápida de perfil (com limite de tempo)
+        const profilePromise = supabase.from('profiles').select('credits, is_admin').eq('id', userId).single();
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('DB_TIMEOUT')), 5000));
+
+        const { data: profile, error: profileError } = await Promise.race([profilePromise, timeoutPromise]) as any;
+
+        if (profileError || !profile) {
+            return new Response(JSON.stringify({ error: 'Erro ao validar créditos no banco.' }), { status: 500 });
         }
 
+        if (!profile.is_admin && profile.credits <= 0) {
+            return new Response(JSON.stringify({ error: 'Créditos insuficientes.' }), { status: 403 });
+        }
+
+        // 3. DEDUZIR CRÉDITO EM SEGUNDO PLANO (Não esperamos o resultado para responder ao usuário)
+        if (!profile.is_admin) {
+            supabase.from('profiles').update({ credits: profile.credits - 1 }).eq('id', userId).then();
+        }
+
+        // 4. RESPONDER AO USUÁRIO (Rápido!)
         return new Response(JSON.stringify({ 
             success: true, 
             obfuscatedCode,
-            remainingCredits: isAdmin ? 999999 : currentCredits - 1
+            remainingCredits: profile.is_admin ? 999999 : profile.credits - 1
         }), {
             status: 200,
             headers: { 'Content-Type': 'application/json' }
         });
 
     } catch (error: any) {
-        console.error("Obfuscation API error:", error);
-        return new Response(JSON.stringify({ error: error.message || 'Erro interno no servidor' }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' }
-        });
+        return new Response(JSON.stringify({ error: error.message === 'DB_TIMEOUT' ? 'Banco de dados lento. Tente novamente.' : 'Erro interno.' }), { status: 500 });
     }
 }
