@@ -56,9 +56,18 @@ export default async function handler(request: Request) {
     try {
         const authHeader = request.headers.get('Authorization');
         const body = await request.json();
-        const { code, userId } = body;
+        let { code, userId, isBase64 } = body;
 
         if (!code) return new Response(JSON.stringify({ error: 'Código vazio.' }), { status: 400 });
+
+        // Decodificar Base64 se necessário (camuflagem anti-WAF)
+        if (isBase64) {
+            try {
+                code = decodeURIComponent(escape(atob(code)));
+            } catch (e) {
+                return new Response(JSON.stringify({ error: 'Erro ao decodificar payload.' }), { status: 400 });
+            }
+        }
 
         // OFUSCAR IMEDIATAMENTE (NUNCA ESPERA O DB)
         const obfuscatedCode = obfuscateLua(code);

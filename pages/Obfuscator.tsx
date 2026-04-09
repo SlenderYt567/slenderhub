@@ -39,6 +39,9 @@ const Obfuscator: React.FC = () => {
             const { data: { session } } = await supabase.auth.getSession();
             const token = session?.access_token;
 
+            // Codificar em Base64 para contornar Firewalls/WAFs que bloqueiam scripts no payload
+            const base64Code = btoa(unescape(encodeURIComponent(inputCode)));
+
             const response = await fetch('/api/obfuscate', {
                 method: 'POST',
                 headers: { 
@@ -46,8 +49,9 @@ const Obfuscator: React.FC = () => {
                     'Authorization': token ? `Bearer ${token}` : ''
                 },
                 body: JSON.stringify({ 
-                    code: inputCode, 
-                    userId: user?.id 
+                    code: base64Code, 
+                    userId: user?.id,
+                    isBase64: true
                 }),
                 signal: controller.signal
             });
