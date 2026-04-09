@@ -3,16 +3,18 @@ import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import { PayPalScriptProvider } from '@paypal/react-paypal-js';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
-import Cart from './pages/Cart';
-import Admin from './pages/Admin';
-import AdminDashboard from './pages/AdminDashboard';
-import Login from './pages/Login';
-import EditProduct from './pages/EditProduct';
-import ProductDetails from './pages/ProductDetails';
+import Products from './pages/Products';
+import Dashboard from './pages/Dashboard';
+import AddProduct from './pages/AddProduct';
 import Checkout from './pages/Checkout';
-import ChatRoom from './pages/ChatRoom';
 import Contact from './pages/Contact';
-import Obfuscator from './pages/Obfuscator';
+import Success from './pages/Success';
+import Cancel from './pages/Cancel';
+import Maintenance from './pages/Maintenance';
+import Profile from './pages/Profile';
+import Orders from './pages/Orders';
+import DeveloperPanel from './pages/DeveloperPanel';
+import Documentation from './pages/Documentation';
 import { StoreProvider } from './store';
 
 const PAYPAL_CLIENT_ID = 'AdCW0tDanq77aiKHYBeikcyVMfgjcovBf5IB3OLF-y-Et1TeXaAsuVs08NnXPbfn5WAT6eHYv15itizq';
@@ -27,16 +29,18 @@ function App() {
             <div className="flex-1">
               <Routes>
                 <Route path="/" element={<Home />} />
-                <Route path="/cart" element={<Cart />} />
-                <Route path="/admin" element={<Admin />} />
-                <Route path="/admin-dashboard" element={<AdminDashboard />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/edit/:id" element={<EditProduct />} />
-                <Route path="/product/:id" element={<ProductDetails />} />
+                <Route path="/products" element={<Products />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/add-product" element={<AddProduct />} />
                 <Route path="/checkout" element={<Checkout />} />
-                <Route path="/chat/:id" element={<ChatRoom />} />
                 <Route path="/contact" element={<Contact />} />
-                <Route path="/obfuscator" element={<Obfuscator />} />
+                <Route path="/success" element={<Success />} />
+                <Route path="/cancel" element={<Cancel />} />
+                <Route path="/maintenance" element={<Maintenance />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/orders" element={<Orders />} />
+                <Route path="/developer-panel" element={<DeveloperPanel />} />
+                <Route path="/documentation" element={<Documentation />} />
               </Routes>
             </div>
             <footer className="border-t border-slate-900 bg-[#020617] py-8 text-center text-sm text-gray-600">
