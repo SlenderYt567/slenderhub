@@ -14,11 +14,27 @@ import ChatRoom from './pages/ChatRoom';
 import Contact from './pages/Contact';
 import DeveloperPanel from './pages/DeveloperPanel';
 import Documentation from './pages/Documentation';
+import Maintenance from './pages/Maintenance';
 import { StoreProvider } from './store';
 
 const PAYPAL_CLIENT_ID = 'AdCW0tDanq77aiKHYBeikcyVMfgjcovBf5IB3OLF-y-Et1TeXaAsuVs08NnXPbfn5WAT6eHYv15itizq';
 
 function App() {
+  // MODO DE MANUTENÇÃO DESATIVADO
+  const isMaintenance = false;
+
+  if (isMaintenance) {
+    return (
+      <StoreProvider>
+        <Router>
+          <Routes>
+            <Route path="*" element={<Maintenance />} />
+          </Routes>
+        </Router>
+      </StoreProvider>
+    );
+  }
+
   return (
     <PayPalScriptProvider options={{ clientId: PAYPAL_CLIENT_ID, currency: 'USD', intent: 'capture' }}>
       <StoreProvider>

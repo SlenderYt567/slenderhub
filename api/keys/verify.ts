@@ -1,11 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://pypfcdczatmsnqjuggiq.supabase.co';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_f6NUOpZVZwHxqe0Meivd-w_7zs3cj4b';
+const supabaseUrl = process.env.SUPABASE_URL || 'https://pypfcdczatmsnqjuggiq.supabase.co';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY; // Chave secreta no backend
 
 export default async function handler(request: Request) {
-    if (request.method !== 'GET') {
-        return new Response(JSON.stringify({ success: false, message: 'Method Not Allowed' }), { status: 405 });
+    if (!supabaseKey) {
+        console.error("ERRO CRITICO: Verificação falhou - Chave de API ausente");
+        return new Response(JSON.stringify({ success: false, message: 'Server Config Error' }), { status: 500 });
     }
 
     const { searchParams } = new URL(request.url);
