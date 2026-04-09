@@ -1,12 +1,58 @@
 import { createClient } from '@supabase/supabase-js';
-import { obfuscateLua } from '../lib/obfuscator';
+
+// Lógica de ofuscação movida para dentro da API para compatibilidade total com Vercel
+const obfuscateLua = (code: string): string => {
+  let result = code;
+
+  // 1. Remover Comentários
+  result = result.replace(/--\[\[[\s\S]*?\]\]/g, ''); 
+  result = result.replace(/--.*$/gm, '');             
+
+  // 2. Proteção de Strings (Hex Escape)
+  result = result.replace(/(["'])(?:(?=(\\?))\2.)*?\1/g, (match) => {
+    const quote = match[0];
+    const content = match.slice(1, -1);
+    let escaped = '';
+    for (let i = 0; i < content.length; i++) {
+        escaped += '\\' + content.charCodeAt(i).toString(10).padStart(3, '0');
+    }
+    return `${quote}${escaped}${quote}`;
+  });
+
+  // 3. Renomeação de Variáveis Locais (Básico)
+  const localVars = new Set<string>();
+  const localRegex = /local\s+([a-zA-Z_][a-zA-Z0-9_]*)/g;
+  let match;
+  while ((match = localRegex.exec(result)) !== null) {
+    if (!['function', 'then', 'else', 'end', 'in', 'do', 'repeat', 'until', 'while', 'for', 'if'].includes(match[1])) {
+        localVars.add(match[1]);
+    }
+  }
+
+  const varMap = new Map<string, string>();
+  localVars.forEach(v => {
+    const randomName = 'slender_' + Math.random().toString(36).substring(2, 10);
+    varMap.set(v, randomName);
+  });
+
+  varMap.forEach((newName, oldName) => {
+    const regex = new RegExp(`\\b${oldName}\\b`, 'g');
+    result = result.replace(regex, newName);
+  });
+
+  // 4. Minificação básica
+  result = result.replace(/\s+/g, ' ').trim();
+
+  const header = `-- Obfuscated by SlenderHub (Beta)\n-- Date: ${new Date().toLocaleDateString()}\n`;
+  return header + result;
+};
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://pypfcdczatmsnqjuggiq.supabase.co';
-const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || ''; // Use ANON KEY or Service Role if possible
+const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_f6NUOpZVZwHxqe0Meivd-w_7zs3cj4b';
 
 export default async function handler(request: Request) {
     if (request.method !== 'POST') {
-        return new Response('Method Not Allowed', { status: 405 });
+        return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405 });
     }
 
     try {
@@ -30,7 +76,7 @@ export default async function handler(request: Request) {
             .single();
 
         if (profileError || !profile) {
-            return new Response(JSON.stringify({ error: 'Usuário não encontrado.' }), {
+            return new Response(JSON.stringify({ error: 'Perfil não encontrado no banco de dados.' }), {
                 status: 404,
                 headers: { 'Content-Type': 'application/json' }
             });
@@ -51,14 +97,10 @@ export default async function handler(request: Request) {
 
         // 3. Deduzir crédito (se não for admin)
         if (!isAdmin) {
-            const { error: updateError } = await supabase
+            await supabase
                 .from('profiles')
                 .update({ credits: currentCredits - 1 })
                 .eq('id', userId);
-
-            if (updateError) {
-                console.error("Erro ao deduzir créditos:", updateError);
-            }
         }
 
         return new Response(JSON.stringify({ 

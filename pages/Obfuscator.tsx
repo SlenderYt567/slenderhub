@@ -41,6 +41,11 @@ const Obfuscator: React.FC = () => {
                 })
             });
 
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `Erro do servidor: ${response.status}`);
+            }
+
             const data = await response.json();
 
             if (data.success) {
@@ -49,8 +54,8 @@ const Obfuscator: React.FC = () => {
             } else {
                 setError(data.error || 'Erro ao ofuscar o código.');
             }
-        } catch (err) {
-            setError('Falha na comunicação com o servidor.');
+        } catch (err: any) {
+            setError(err.message || 'Falha na comunicação com o servidor.');
         } finally {
             setLoading(false);
         }
