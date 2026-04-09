@@ -1,5 +1,5 @@
 import React from 'react';
-import { HashRouter as Router, Routes, Route } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { PayPalScriptProvider } from '@paypal/react-paypal-js';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
@@ -20,21 +20,6 @@ import { StoreProvider } from './store';
 const PAYPAL_CLIENT_ID = 'AdCW0tDanq77aiKHYBeikcyVMfgjcovBf5IB3OLF-y-Et1TeXaAsuVs08NnXPbfn5WAT6eHYv15itizq';
 
 function App() {
-  // MODO DE MANUTENÇÃO DESATIVADO
-  const isMaintenance = false;
-
-  if (isMaintenance) {
-    return (
-      <StoreProvider>
-        <Router>
-          <Routes>
-            <Route path="*" element={<Maintenance />} />
-          </Routes>
-        </Router>
-      </StoreProvider>
-    );
-  }
-
   return (
     <PayPalScriptProvider options={{ clientId: PAYPAL_CLIENT_ID, currency: 'USD', intent: 'capture' }}>
       <StoreProvider>
@@ -53,8 +38,13 @@ function App() {
                 <Route path="/checkout" element={<Checkout />} />
                 <Route path="/chat/:id" element={<ChatRoom />} />
                 <Route path="/contact" element={<Contact />} />
-                <Route path="/developer-panel" element={<DeveloperPanel />} />
-                <Route path="/documentation" element={<Documentation />} />
+                
+                {/* Páginas em Manutenção Específica */}
+                <Route path="/developer-panel" element={<Maintenance />} />
+                <Route path="/documentation" element={<Maintenance />} />
+                
+                {/* Fallback */}
+                <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </div>
             <footer className="border-t border-slate-900 bg-[#020617] py-8 text-center text-sm text-gray-600">
