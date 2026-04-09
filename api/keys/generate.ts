@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://pypfcdczatmsnqjuggiq.supabase.co';
-const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_f6NUOpZVZwHxqe0Meivd-w_7zs3cj4b';
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://pypfcdczatmsnqjuggiq.supabase.co';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_f6NUOpZVZwHxqe0Meivd-w_7zs3cj4b';
 
 const generateKey = (prefix: string = 'SLENDER') => {
     const randomPart = () => Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -14,15 +14,14 @@ export default async function handler(request: Request) {
     }
 
     try {
-        const authHeader = request.headers.get('Authorization');
         const body = await request.json();
         const { userId, prefix, durationDays, note } = body;
 
+        console.log("Generating key for:", userId);
+
         if (!userId) return new Response(JSON.stringify({ error: 'User ID is required' }), { status: 400 });
 
-        const supabase = createClient(supabaseUrl, supabaseKey, {
-            global: { headers: { Authorization: authHeader || '' } }
-        });
+        const supabase = createClient(supabaseUrl, supabaseKey);
 
         // 1. Verificar se o usuário tem plano de dev (Tier)
         const { data: profile, error: profileError } = await supabase
