@@ -33,7 +33,7 @@ const Obfuscator: React.FC = () => {
         setOutputCode('');
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
         try {
             const { data: { session } } = await supabase.auth.getSession();

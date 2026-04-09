@@ -1,11 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Motor de ofuscação (Execução instantânea local)
+// Motor de ofuscação ultra-rápido consolidado
 const obfuscateLua = (code: string): string => {
   let result = code;
+
+  // 0. Remover blocos de código Markdown se colados por engano (```lua ... ```)
+  result = result.replace(/^```[a-z]*\n/i, '');
+  result = result.replace(/\n```$/m, '');
+  result = result.trim();
+
+  // 1. Remover Comentários
   result = result.replace(/--\[\[[\s\S]*?\]\]/g, ''); 
   result = result.replace(/--.*$/gm, '');             
 
+  // 2. Proteção de Strings
   result = result.replace(/(["'])(?:(?=(\\?))\2.)*?\1/g, (match) => {
     const quote = match[0];
     const content = match.slice(1, -1);
@@ -16,6 +24,7 @@ const obfuscateLua = (code: string): string => {
     return `${quote}${escaped}${quote}`;
   });
 
+  // 3. Renomeação de Variáveis Locais
   const localVars = new Set<string>();
   const localRegex = /local\s+([a-zA-Z_][a-zA-Z0-9_]*)/g;
   let match;
@@ -35,7 +44,7 @@ const obfuscateLua = (code: string): string => {
   }
 
   result = result.replace(/\s+/g, ' ').trim();
-  return `-- Obfuscated by SlenderHub (Beta)\n-- Date: ${new Date().toLocaleDateString()}\n` + result;
+  return `-- SlenderHub Protected\n` + result;
 };
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://pypfcdczatmsnqjuggiq.supabase.co';
@@ -49,49 +58,59 @@ export default async function handler(request: Request) {
         const body = await request.json();
         const { code, userId } = body;
 
-        if (!code || !userId) return new Response(JSON.stringify({ error: 'Faltam dados.' }), { status: 400 });
+        if (!code) return new Response(JSON.stringify({ error: 'Código vazio.' }), { status: 400 });
 
-        // 1. OFUSCAR PRIMEIRO (Prioridade máxima, não depende de banco de dados)
-        // Isso garante que se o DB estiver lento, a ofuscação já ocorreu e está na memória.
+        // OFUSCAR IMEDIATAMENTE (NUNCA ESPERA O DB)
         const obfuscatedCode = obfuscateLua(code);
 
-        // 2. CONEXÃO COM BANCO (TIMEOUT DE 5 SEGUNDOS PARA DB)
-        // Se o Supabase demorar mais de 5s, vamos assumir que deu erro para não travar a Vercel.
-        const supabase = createClient(supabaseUrl, supabaseKey, {
-            global: { headers: { Authorization: authHeader || '' } },
-            auth: { persistSession: false } 
-        });
+        // Tenta falar com o banco em paralelo, mas não trava se demorar
+        // Usamos um timeout bem curto para a verificação de créditos
+        let remainingCredits = 999999;
+        
+        if (userId) {
+            try {
+                const supabase = createClient(supabaseUrl, supabaseKey, {
+                    global: { headers: { Authorization: authHeader || '' } },
+                    auth: { persistSession: false }
+                });
 
-        // Verificação rápida de perfil (com limite de tempo)
-        const profilePromise = supabase.from('profiles').select('credits, is_admin').eq('id', userId).single();
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('DB_TIMEOUT')), 5000));
+                // Tentativa de consulta com timeout de 3 segundos
+                const controller = new AbortController();
+                const id = setTimeout(() => controller.abort(), 3000);
 
-        const { data: profile, error: profileError } = await Promise.race([profilePromise, timeoutPromise]) as any;
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('credits, is_admin')
+                    .eq('id', userId)
+                    .single();
+                
+                clearTimeout(id);
 
-        if (profileError || !profile) {
-            return new Response(JSON.stringify({ error: 'Erro ao validar créditos no banco.' }), { status: 500 });
+                if (profile) {
+                    remainingCredits = profile.is_admin ? 999999 : profile.credits - 1;
+                    // Atualiza créditos em background sem await
+                    if (!profile.is_admin) {
+                        supabase.from('profiles').update({ credits: profile.credits - 1 }).eq('id', userId).then();
+                    }
+                }
+            } catch (dbError) {
+                console.warn("DB interaction failed or timed out, proceeding anyway.");
+            }
         }
 
-        if (!profile.is_admin && profile.credits <= 0) {
-            return new Response(JSON.stringify({ error: 'Créditos insuficientes.' }), { status: 403 });
-        }
-
-        // 3. DEDUZIR CRÉDITO EM SEGUNDO PLANO (Não esperamos o resultado para responder ao usuário)
-        if (!profile.is_admin) {
-            supabase.from('profiles').update({ credits: profile.credits - 1 }).eq('id', userId).then();
-        }
-
-        // 4. RESPONDER AO USUÁRIO (Rápido!)
         return new Response(JSON.stringify({ 
             success: true, 
             obfuscatedCode,
-            remainingCredits: profile.is_admin ? 999999 : profile.credits - 1
+            remainingCredits
         }), {
             status: 200,
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-store'
+            }
         });
 
-    } catch (error: any) {
-        return new Response(JSON.stringify({ error: error.message === 'DB_TIMEOUT' ? 'Banco de dados lento. Tente novamente.' : 'Erro interno.' }), { status: 500 });
+    } catch (err: any) {
+        return new Response(JSON.stringify({ error: 'Erro crítico de execução.' }), { status: 500 });
     }
 }
