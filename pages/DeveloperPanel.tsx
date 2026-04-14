@@ -24,6 +24,14 @@ const DeveloperPanel: React.FC = () => {
   });
   const [generating, setGenerating] = useState(false);
 
+  // States for gateway modal
+  const [isGatewayModalOpen, setIsGatewayModalOpen] = useState(false);
+  const [gatewayConfig, setGatewayConfig] = useState<any>({
+    shortener_url: '',
+    discord_url: '',
+    youtube_url: ''
+  });
+
   useEffect(() => {
     if (user) {
       fetchKeys();
@@ -41,6 +49,16 @@ const DeveloperPanel: React.FC = () => {
 
       if (fetchError) throw fetchError;
       setKeys(data || []);
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('shortener_url, discord_url, youtube_url')
+        .eq('id', user?.id)
+        .single();
+      
+      if (profile) {
+        setGatewayConfig(profile);
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -52,27 +70,19 @@ const DeveloperPanel: React.FC = () => {
     if (!user) return;
     setGenerating(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-
-      const response = await fetch('/api/keys/generate', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
-        },
-        body: JSON.stringify({
-          userId: user.id,
-          ...newKeyConfig
-        })
+      const { data, error } = await supabase.rpc('generate_license_key', {
+        target_prefix: newKeyConfig.prefix || 'SLENDER',
+        target_duration_days: newKeyConfig.durationDays,
+        target_note: newKeyConfig.note
       });
 
-      const data = await response.json();
-      if (data.success) {
+      if (error) throw error;
+      
+      if (data && data.success) {
         setIsModalOpen(false);
         fetchKeys();
       } else {
-        alert(data.error || 'Failed to generate key');
+        alert(data?.error || 'Failed to generate key');
       }
     } catch (err: any) {
       alert(err.message);
@@ -84,29 +94,47 @@ const DeveloperPanel: React.FC = () => {
   const handleResetHWID = async (keyId: string) => {
     if (!confirm('Are you sure you want to reset the HWID for this key?')) return;
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-
-      const response = await fetch('/api/keys/reset-hwid', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
-        },
-        body: JSON.stringify({ keyId, userId: user?.id })
+      const { data, error } = await supabase.rpc('reset_license_hwid', {
+        target_key_id: keyId
       });
 
-      if (response.ok) {
+      if (error) throw error;
+
+      if (data && data.success) {
         fetchKeys();
+      } else {
+        alert(data?.error || 'Failed to reset HWID');
       }
     } catch (err: any) {
       alert(err.message);
     }
   };
 
-  const copyToClipboard = (text: string) => {
+  const handleSaveGateway = async () => {
+    try {
+      setGenerating(true);
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          shortener_url: gatewayConfig.shortener_url,
+          discord_url: gatewayConfig.discord_url,
+          youtube_url: gatewayConfig.youtube_url
+        })
+        .eq('id', user?.id);
+
+      if (error) throw error;
+      setIsGatewayModalOpen(false);
+      alert('Gateway Settings Saved Successfully!');
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const copyToClipboard = (text: string, isKey: boolean = true) => {
     navigator.clipboard.writeText(text);
-    setCopiedKey(text);
+    setCopiedKey(isKey ? text : 'URL-' + text);
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
@@ -123,6 +151,13 @@ const DeveloperPanel: React.FC = () => {
           </div>
           
           <div className="flex gap-4">
+            <button
+              onClick={() => setIsGatewayModalOpen(true)}
+              className="flex items-center space-x-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors border border-slate-700"
+            >
+              <ExternalLink className="w-4 h-4" />
+              <span>Gateway Settings</span>
+            </button>
             <Link 
               to="/documentation"
               className="flex items-center space-x-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors border border-slate-700"
@@ -200,10 +235,21 @@ const DeveloperPanel: React.FC = () => {
                             {key.key_string}
                           </code>
                           <button 
-                            onClick={() => copyToClipboard(key.key_string)}
+                            onClick={() => copyToClipboard(key.key_string, true)}
+                            title="Copy Key"
                             className="text-gray-500 hover:text-white transition-colors"
                           >
                             {copiedKey === key.key_string ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                          </button>
+                          <button 
+                            onClick={() => {
+                              const baseUrl = window.location.origin + window.location.pathname;
+                              copyToClipboard(`${baseUrl}#/unlock/${key.key_string}`, false);
+                            }}
+                            title="Copy Gateway Link"
+                            className="text-blue-500 hover:text-blue-400 transition-colors"
+                          >
+                            {copiedKey === 'URL-' + key.key_string ? <Check className="w-4 h-4 text-green-500" /> : <ExternalLink className="w-4 h-4" />}
                           </button>
                         </div>
                       </td>
@@ -313,6 +359,70 @@ const DeveloperPanel: React.FC = () => {
                   className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl transition-colors font-bold disabled:opacity-50"
                 >
                   {generating ? 'Generating...' : 'Confirm'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Gateway Settings Modal */}
+      {isGatewayModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#0f172a] border border-slate-800 w-full max-w-lg rounded-3xl p-8 shadow-2xl">
+            <div className="flex items-center space-x-3 mb-6">
+              <ExternalLink className="w-6 h-6 text-blue-500" />
+              <h2 className="text-2xl font-bold">Gateway Config</h2>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Shortener Target URL (ex: Linkvertise)</label>
+                <input 
+                  type="url" 
+                  value={gatewayConfig?.shortener_url || ''}
+                  onChange={(e) => setGatewayConfig({...gatewayConfig, shortener_url: e.target.value})}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-sm placeholder-gray-600"
+                  placeholder="https://link-center.net/..."
+                />
+                <p className="text-xs text-gray-500 mt-1">Leave blank to disable. Users will be redirected here before receiving the key.</p>
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">YouTube Required Channel URL</label>
+                <input 
+                  type="url" 
+                  value={gatewayConfig?.youtube_url || ''}
+                  onChange={(e) => setGatewayConfig({...gatewayConfig, youtube_url: e.target.value})}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 focus:ring-2 focus:ring-red-500 outline-none text-sm placeholder-gray-600"
+                  placeholder="https://youtube.com/@..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Discord Invite URL</label>
+                <input 
+                  type="url" 
+                  value={gatewayConfig?.discord_url || ''}
+                  onChange={(e) => setGatewayConfig({...gatewayConfig, discord_url: e.target.value})}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none text-sm placeholder-gray-600"
+                  placeholder="https://discord.gg/..."
+                />
+              </div>
+
+              <div className="pt-4 flex gap-4">
+                <button 
+                  onClick={() => setIsGatewayModalOpen(false)}
+                  className="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleSaveGateway}
+                  disabled={generating}
+                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl transition-colors font-bold disabled:opacity-50"
+                >
+                  {generating ? 'Saving...' : 'Save Settings'}
                 </button>
               </div>
             </div>

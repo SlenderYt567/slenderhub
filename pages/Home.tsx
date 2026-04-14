@@ -1,5 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, Rocket, Shield, Terminal } from 'lucide-react';
+import { Search, Filter, Rocket, Shield, Terminal, Star, Quote } from 'lucide-react';
+
+const STORE_REVIEWS = [
+  { id: 1, name: 'ShadowGamer99', content: 'Fast and safe delivery! Best script store, highly recommend. 10/10!', rating: 5, date: '1 day ago' },
+  { id: 2, name: 'RX_Sniper', content: 'Bought and received instantly via automated email. Everything working 100%. Completely reliable site.', rating: 5, date: '3 days ago' },
+  { id: 3, name: 'Lucas_Blox', content: 'Excellent support and the exploits are very good, exceeded my expectations. Fair prices!', rating: 5, date: '1 week ago' }
+];
+
 import { useStore } from '../store';
 import ProductCard from '../components/ProductCard';
 
@@ -127,6 +134,45 @@ const Home: React.FC = () => {
             </div>
         )}
       </main>
+
+      {/* Reviews Section */}
+      <section className="border-t border-slate-800 bg-[#0B1120] py-16 relative overflow-hidden">
+        {/* Decorative elements */}
+        <div className="absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500/10 p-32 blur-3xl"></div>
+        <div className="absolute right-0 bottom-0 translate-x-1/2 translate-y-1/2 rounded-full bg-purple-500/10 p-32 blur-3xl"></div>
+        
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-12">
+                <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+                    What our <span className="text-blue-500">Customers say</span>
+                </h2>
+                <p className="mt-4 text-lg text-gray-400">Satisfaction is guaranteed. Check out the reviews from those who have already bought from us.</p>
+            </div>
+            
+            <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
+                {STORE_REVIEWS.map(review => (
+                    <div key={review.id} className="relative rounded-2xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl backdrop-blur-md transition-all hover:-translate-y-1 hover:border-slate-700 hover:shadow-blue-500/10">
+                        <Quote className="absolute right-6 top-6 h-8 w-8 text-slate-800" />
+                        <div className="flex gap-1 mb-4">
+                            {[...Array(review.rating)].map((_, i) => (
+                                <Star key={i} className="h-5 w-5 fill-yellow-500 text-yellow-500" />
+                            ))}
+                        </div>
+                        <p className="mb-6 text-gray-300">"{review.content}"</p>
+                        <div className="flex items-center gap-4">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-purple-600 font-bold text-white shadow-inner">
+                                {review.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                                <h4 className="font-semibold text-white">{review.name}</h4>
+                                <span className="text-xs text-gray-500">Verified Buyer • {review.date}</span>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+      </section>
 
       {/* Features / Trust Section */}
       <section className="border-t border-slate-800 bg-slate-900 py-16">

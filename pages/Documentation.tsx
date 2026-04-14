@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Terminal, Copy, Check, Shield, Zap, Globe, Lock, Cpu, Info } from 'lucide-react';
+import { Terminal, Copy, Check, Shield, Zap, Globe, Lock, Cpu, Info, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Documentation: React.FC = () => {

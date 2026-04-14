@@ -39,6 +39,11 @@ const Navbar: React.FC = () => {
           <Link to="/contact" className={`hidden text-sm font-medium transition md:block ${isActive('/contact')}`}>
             Contact
           </Link>
+          {isAuthenticated && (
+            <Link to="/developer-panel" className={`hidden text-sm font-medium transition md:block ${isActive('/developer-panel')}`}>
+              Developer Panel
+            </Link>
+          )}
 
           {isAdmin && (
             <>

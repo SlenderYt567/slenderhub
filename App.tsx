@@ -15,6 +15,7 @@ import Contact from './pages/Contact';
 import DeveloperPanel from './pages/DeveloperPanel';
 import Documentation from './pages/Documentation';
 import Maintenance from './pages/Maintenance';
+import UnlockKey from './pages/UnlockKey';
 import { StoreProvider } from './store';
 
 const PAYPAL_CLIENT_ID = 'AdCW0tDanq77aiKHYBeikcyVMfgjcovBf5IB3OLF-y-Et1TeXaAsuVs08NnXPbfn5WAT6eHYv15itizq';
@@ -39,9 +40,10 @@ function App() {
                 <Route path="/chat/:id" element={<ChatRoom />} />
                 <Route path="/contact" element={<Contact />} />
                 
-                {/* Páginas em Manutenção Específica */}
-                <Route path="/developer-panel" element={<Maintenance />} />
-                <Route path="/documentation" element={<Maintenance />} />
+                {/* Páginas do Sistema de Chaves (SlenderKey) */}
+                <Route path="/developer-panel" element={<DeveloperPanel />} />
+                <Route path="/documentation" element={<Documentation />} />
+                <Route path="/unlock/:key" element={<UnlockKey />} />
                 
                 {/* Fallback */}
                 <Route path="*" element={<Navigate to="/" replace />} />
