@@ -22,6 +22,7 @@ export default async function handler(request: Request) {
     }
 
     try {
+        console.log(`[Verify] Checking key: ${key} for HWID: ${hwid}`);
         const supabase = createClient(supabaseUrl, supabaseKey);
 
         const { data, error } = await supabase.rpc('verify_license_key', {
@@ -30,11 +31,19 @@ export default async function handler(request: Request) {
         });
 
         if (error) {
-            console.error("RPC Error:", error);
-            return new Response(JSON.stringify({ success: false, message: 'Database error' }), { status: 500 });
+            console.error("[Verify] RPC Error:", error);
+            return new Response(JSON.stringify({ 
+                success: false, 
+                message: `Database Error: ${error.message}`,
+                details: error.hint
+            }), { 
+                status: 500,
+                headers: { 'Content-Type': 'application/json' }
+            });
         }
 
-        // data holds the json returned by the RPC
+        console.log("[Verify] RPC Result:", data);
+
         return new Response(JSON.stringify(data), {
             status: data && data.success ? 200 : 403,
             headers: { 
@@ -44,6 +53,13 @@ export default async function handler(request: Request) {
         });
 
     } catch (err: any) {
-        return new Response(JSON.stringify({ success: false, message: 'Internal server error' }), { status: 500 });
+        console.error("[Verify] Catch Error:", err);
+        return new Response(JSON.stringify({ 
+            success: false, 
+            message: `Internal Server Error: ${err.message}` 
+        }), { 
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
 }
