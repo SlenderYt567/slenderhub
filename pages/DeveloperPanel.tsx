@@ -31,6 +31,7 @@ const DeveloperPanel: React.FC = () => {
     discord_url: '',
     youtube_url: ''
   });
+  const [devTier, setDevTier] = useState<string>('none');
 
   useEffect(() => {
     if (user) {
@@ -52,12 +53,13 @@ const DeveloperPanel: React.FC = () => {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('shortener_url, discord_url, youtube_url')
+        .select('shortener_url, discord_url, youtube_url, dev_tier')
         .eq('id', user?.id)
         .single();
       
       if (profile) {
         setGatewayConfig(profile);
+        setDevTier(profile.dev_tier || 'none');
       }
     } catch (err: any) {
       setError(err.message);
@@ -175,7 +177,26 @@ const DeveloperPanel: React.FC = () => {
           </div>
         </div>
 
-        {/* Stats Grid Placeholder */}
+        {/* Upgrade Banner — shown when user has no dev plan */}
+        {devTier === 'none' && !loading && (
+          <div className="mb-8 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">⚠️</span>
+              <div>
+                <h3 className="font-bold text-amber-300 mb-1">Plano Não Ativado</h3>
+                <p className="text-sm text-gray-400">Você ainda não possui um plano SlenderKey ativo. Adquira um plano para gerar chaves de licença.</p>
+              </div>
+            </div>
+            <Link
+              to="/pricing"
+              className="shrink-0 flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-2.5 text-sm font-bold text-white hover:from-amber-400 hover:to-orange-400 transition-all shadow-lg shadow-amber-500/20"
+            >
+              Ver Planos
+            </Link>
+          </div>
+        )}
+
+        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl backdrop-blur-sm">
             <div className="flex items-center space-x-3 mb-4">
@@ -377,15 +398,33 @@ const DeveloperPanel: React.FC = () => {
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Shortener Target URL (ex: Linkvertise)</label>
-                <input 
-                  type="url" 
-                  value={gatewayConfig?.shortener_url || ''}
-                  onChange={(e) => setGatewayConfig({...gatewayConfig, shortener_url: e.target.value})}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-sm placeholder-gray-600"
-                  placeholder="https://link-center.net/..."
-                />
-                <p className="text-xs text-gray-500 mt-1">Leave blank to disable. Users will be redirected here before receiving the key.</p>
+                <label className="block text-sm text-gray-400 mb-1">Linkvertise User ID (Optional)</label>
+                <div className="flex items-center space-x-2">
+                  <input 
+                    type="text" 
+                    value={gatewayConfig?.shortener_url || ''}
+                    onChange={(e) => setGatewayConfig({...gatewayConfig, shortener_url: e.target.value.replace(/[^0-9]/g, '')})}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-sm placeholder-gray-600"
+                    placeholder="ex: 982465"
+                  />
+                  <a href="https://publisher.linkvertise.com/ac/links" target="_blank" className="text-blue-500 hover:text-blue-400 text-sm whitespace-nowrap">Find ID</a>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">If provided, the site will automatically generate dynamic Linkvertise ads for every key.</p>
+              </div>
+
+              <div className="bg-blue-500/5 border border-blue-500/10 rounded-2xl p-4">
+                <div className="flex items-start gap-3">
+                  <Info className="w-5 h-5 text-blue-400 mt-0.5" />
+                  <div>
+                    <h4 className="text-sm font-bold text-blue-300 mb-1">Custom Shortener / Manual Mode</h4>
+                    <p className="text-xs text-gray-400 leading-relaxed">
+                      If you use Monetag, LootLabs or other shorteners, set your "Destination URL" to:
+                      <code className="block mt-2 p-2 bg-slate-950 rounded border border-slate-800 text-blue-400 break-all select-all">
+                        {window.location.origin}/#/verify-gateway
+                      </code>
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <div>

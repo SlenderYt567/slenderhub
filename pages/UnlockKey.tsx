@@ -16,11 +16,25 @@ const UnlockKey: React.FC = () => {
     // Verification States
     const [youtubeVerified, setYoutubeVerified] = useState(false);
     const [discordVerified, setDiscordVerified] = useState(false);
+    const [socialTimer, setSocialTimer] = useState(0);
+    const [verifyingType, setVerifyingType] = useState<'youtube' | 'discord' | null>(null);
 
     useEffect(() => {
         if (key) {
             fetchGatewayInfo();
         }
+        
+        // Listen for verification from another tab (verify-gateway page)
+        const handleStorageChange = () => {
+            const isVerified = localStorage.getItem('slender_gateway_verified');
+            if (isVerified === 'true') {
+                window.location.href = `${window.location.origin}${window.location.pathname}#/unlock/${key}?step=completed`;
+                localStorage.removeItem('slender_gateway_verified');
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
     }, [key]);
 
     // If it comes back from shortener, auto-verify social steps to avoid annoying the user again
@@ -55,39 +69,43 @@ const UnlockKey: React.FC = () => {
     };
 
     const handleVerifySocial = (type: 'youtube' | 'discord', url: string) => {
+        if (verifyingType) return; // Already verifying something
+        
         window.open(url, '_blank');
-        // Fake verification delay for UX
-        setTimeout(() => {
-            if (type === 'youtube') setYoutubeVerified(true);
-            if (type === 'discord') setDiscordVerified(true);
-        }, 5000);
+        setVerifyingType(type);
+        setSocialTimer(12);
+
+        const interval = setInterval(() => {
+            setSocialTimer((prev) => {
+                if (prev <= 1) {
+                    clearInterval(interval);
+                    if (type === 'youtube') setYoutubeVerified(true);
+                    if (type === 'discord') setDiscordVerified(true);
+                    setVerifyingType(null);
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
     };
 
     const handleGetFinalKey = () => {
         if (gatewayConfig.shortener_url && !isCompleted) {
-            // Se o dev colocou a URL final pro shortener, redirecionamos para o shortener.
-            // Aqui assumimos que ele forneceu o link direto do linkvertise apontando para essa tela com step=completed
-            // ex: O desenvolvedor config no linkvertise como destino: "https://slenderhub.shop/#/unlock/KEY?step=completed"
-            // E cola o link do linkvertise lá.
+            // Se o desenvolvedor colocou um ID do Linkvertise, geramos o link dinâmico para essa chave específica
+            const targetUrl = `${window.location.origin}${window.location.pathname}#/unlock/${key}?step=completed`;
+            const base64Url = btoa(targetUrl); // Linkvertise requer base64 do nosso link final
             
-            // Wait, typical linkvertise dynamic link building:
-            // Since we don't have the user's linkvertise ID natively configured, the easiest way for them 
-            // is they provide a fixed Lootlabs/Linkvertise link that just has their destination. 
-            // But how do they preserve the key ID?
+            // Linkvertise Dynamic URL format: https://link-to.net/{userId}/dynamic?r={base64_encoded_url}
+            const linkvertiseUserId = gatewayConfig.shortener_url.replace(/[^0-9]/g, '');
+            const shortenerLink = `https://link-to.net/${linkvertiseUserId}/dynamic?r=${base64Url}`;
+
+            window.open(shortenerLink, '_blank');
             
-            // Let's redirect to whatever URL they put in shortener_url. 
-            // We can append the current URL + ?step=completed as a parameter, maybe some APIs support it. 
-            // But if it's a fixed linkvertise link, the destination is fixed.
-            // If they use dynamic endpoints, maybe they need to replace {dest} in their shortener URL.
-            
-            // To be safe and simple, we open their shortener_url in a new tab.
-            // Because they might not know how to setup dynamic returns, we'll just reveal the key
-            // AFTER they click it (with a delay), like many smaller gateways do.
-            window.open(gatewayConfig.shortener_url, '_blank');
+            // Depois de alguns segundos fechamos essa tela ou deixamos o linkvertise trazer ele de volta.
+            // Para garantir que a aba antiga atualize no futuro caso percam, atualizamos com delay.
             setTimeout(() => {
-                // Change current URL to ?step=completed
-                window.location.href = `/#/unlock/${key}?step=completed`;
-            }, 15000); // 15 seconds to finish shortener roughly minimum
+                window.location.href = targetUrl;
+            }, 30000); 
         } else {
              // Already completed or no shortener
              setCopied(true);
@@ -151,50 +169,56 @@ const UnlockKey: React.FC = () => {
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            {gatewayConfig?.youtube_url && !youtubeVerified && (
-                                <button
-                                    onClick={() => handleVerifySocial('youtube', gatewayConfig.youtube_url)}
-                                    className="w-full flex items-center justify-between p-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-xl transition-all group"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <Youtube className="w-6 h-6 text-red-500" />
-                                        <span className="font-semibold text-gray-200">Subscribe on YouTube</span>
+                            {gatewayConfig?.youtube_url && (
+                                youtubeVerified ? (
+                                    <div className="w-full flex items-center justify-between p-4 bg-green-500/10 border border-green-500/20 rounded-xl">
+                                        <div className="flex items-center gap-3">
+                                            <Youtube className="w-6 h-6 text-green-500" />
+                                            <span className="font-semibold text-green-400">Subscribed</span>
+                                        </div>
+                                        <Check className="w-5 h-5 text-green-500" />
                                     </div>
-                                    <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-blue-400 transition-colors" />
-                                </button>
-                            )}
-                            
-                            {gatewayConfig?.youtube_url && youtubeVerified && (
-                                <div className="w-full flex items-center justify-between p-4 bg-green-500/10 border border-green-500/20 rounded-xl">
-                                    <div className="flex items-center gap-3">
-                                        <Youtube className="w-6 h-6 text-green-500" />
-                                        <span className="font-semibold text-green-400">Subscribed</span>
-                                    </div>
-                                    <Check className="w-5 h-5 text-green-500" />
-                                </div>
-                            )}
-
-                            {gatewayConfig?.discord_url && !discordVerified && (
-                                <button
-                                    onClick={() => handleVerifySocial('discord', gatewayConfig.discord_url)}
-                                    className="w-full flex items-center justify-between p-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-xl transition-all group"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <Discord className="w-6 h-6 text-indigo-400" />
-                                        <span className="font-semibold text-gray-200">Join Discord Server</span>
-                                    </div>
-                                    <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-blue-400 transition-colors" />
-                                </button>
+                                ) : (
+                                    <button
+                                        onClick={() => handleVerifySocial('youtube', gatewayConfig.youtube_url)}
+                                        disabled={verifyingType !== null}
+                                        className={`w-full flex items-center justify-between p-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-xl transition-all group ${verifyingType === 'youtube' ? 'ring-2 ring-red-500' : ''}`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            {verifyingType === 'youtube' ? <Loader2 className="w-6 h-6 text-red-500 animate-spin" /> : <Youtube className="w-6 h-6 text-red-500" />}
+                                            <span className="font-semibold text-gray-200">
+                                                {verifyingType === 'youtube' ? `Aguarde ${socialTimer}s...` : 'Subscribe on YouTube'}
+                                            </span>
+                                        </div>
+                                        <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-blue-400 transition-colors" />
+                                    </button>
+                                )
                             )}
 
-                            {gatewayConfig?.discord_url && discordVerified && (
-                                <div className="w-full flex items-center justify-between p-4 bg-green-500/10 border border-green-500/20 rounded-xl">
-                                    <div className="flex items-center gap-3">
-                                        <Discord className="w-6 h-6 text-green-500" />
-                                        <span className="font-semibold text-green-400">Joined Server</span>
+                            {gatewayConfig?.discord_url && (
+                                discordVerified ? (
+                                    <div className="w-full flex items-center justify-between p-4 bg-green-500/10 border border-green-500/20 rounded-xl">
+                                        <div className="flex items-center gap-3">
+                                            <Discord className="w-6 h-6 text-green-500" />
+                                            <span className="font-semibold text-green-400">Joined Server</span>
+                                        </div>
+                                        <Check className="w-5 h-5 text-green-500" />
                                     </div>
-                                    <Check className="w-5 h-5 text-green-500" />
-                                </div>
+                                ) : (
+                                    <button
+                                        onClick={() => handleVerifySocial('discord', gatewayConfig.discord_url)}
+                                        disabled={verifyingType !== null}
+                                        className={`w-full flex items-center justify-between p-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-xl transition-all group ${verifyingType === 'discord' ? 'ring-2 ring-indigo-500' : ''}`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            {verifyingType === 'discord' ? <Loader2 className="w-6 h-6 text-indigo-400 animate-spin" /> : <Discord className="w-6 h-6 text-indigo-400" />}
+                                            <span className="font-semibold text-gray-200">
+                                                {verifyingType === 'discord' ? `Aguarde ${socialTimer}s...` : 'Join Discord Server'}
+                                            </span>
+                                        </div>
+                                        <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-blue-400 transition-colors" />
+                                    </button>
+                                )
                             )}
 
                             {allVerified && (

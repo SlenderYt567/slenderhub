@@ -16,6 +16,8 @@ import DeveloperPanel from './pages/DeveloperPanel';
 import Documentation from './pages/Documentation';
 import Maintenance from './pages/Maintenance';
 import UnlockKey from './pages/UnlockKey';
+import GatewayVerify from './pages/GatewayVerify';
+import Pricing from './pages/Pricing';
 import { StoreProvider } from './store';
 
 const PAYPAL_CLIENT_ID = 'AdCW0tDanq77aiKHYBeikcyVMfgjcovBf5IB3OLF-y-Et1TeXaAsuVs08NnXPbfn5WAT6eHYv15itizq';
@@ -44,6 +46,8 @@ function App() {
                 <Route path="/developer-panel" element={<DeveloperPanel />} />
                 <Route path="/documentation" element={<Documentation />} />
                 <Route path="/unlock/:key" element={<UnlockKey />} />
+                <Route path="/verify-gateway" element={<GatewayVerify />} />
+                <Route path="/pricing" element={<Pricing />} />
                 
                 {/* Fallback */}
                 <Route path="*" element={<Navigate to="/" replace />} />
