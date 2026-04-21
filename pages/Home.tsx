@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Filter, Rocket, Shield, Terminal, Star, Quote } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const STORE_REVIEWS = [
   { id: 1, name: 'ShadowGamer99', content: 'Fast and safe delivery! Best script store, highly recommend. 10/10!', rating: 5, date: '1 day ago' },
@@ -15,22 +16,11 @@ const Home: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Dynamically calculate unique categories from products
-  const uniqueCategories = useMemo(() => {
-    const categories = new Set<string>(products.map(p => p.category));
-    // Ensure 'script', 'item', 'premium' are always first if they exist, purely for visual consistency,
-    // but append any new custom ones.
-    const defaultOrder = ['script', 'item', 'gamepass', 'premium'];
-    const sorted = Array.from(categories).sort((a, b) => {
-        const idxA = defaultOrder.indexOf(a);
-        const idxB = defaultOrder.indexOf(b);
-        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-        if (idxA !== -1) return -1;
-        if (idxB !== -1) return 1;
-        return a.localeCompare(b);
-    });
-    return ['all', ...sorted];
-  }, [products]);
+  const TABS = [
+    { id: 'all', label: 'All Products' },
+    { id: 'script', label: 'SlenderHub Scripts' },
+    { id: 'item', label: 'Game Items' },
+  ];
 
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
@@ -72,6 +62,32 @@ const Home: React.FC = () => {
               <Terminal className="h-5 w-5" />
               Get Scripts
             </button>
+            <Link to="/pricing" className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-500/50 bg-blue-500/10 px-8 py-3.5 text-base font-bold text-blue-400 backdrop-blur-sm transition hover:bg-blue-500/20 hover:text-blue-300">
+              <Star className="h-5 w-5" />
+              Pricing (Key System)
+            </Link>
+          </div>
+
+          {/* 10k+ Sales Indicator */}
+          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row text-sm text-gray-400">
+             <div className="flex -space-x-3">
+                <img className="inline-block h-10 w-10 rounded-full ring-4 ring-[#0B1120] object-cover" src="https://picsum.photos/seed/user1/100" alt=""/>
+                <img className="inline-block h-10 w-10 rounded-full ring-4 ring-[#0B1120] object-cover" src="https://picsum.photos/seed/user2/100" alt=""/>
+                <img className="inline-block h-10 w-10 rounded-full ring-4 ring-[#0B1120] object-cover" src="https://picsum.photos/seed/user3/100" alt=""/>
+                <div className="flex h-10 w-10 items-center justify-center rounded-full ring-4 ring-[#0B1120] bg-slate-800 relative shadow-inner">
+                   <span className="text-[10px] font-bold text-white">10k+</span>
+                </div>
+             </div>
+             <div className="flex flex-col items-start gap-0.5">
+               <span className="flex items-center gap-1 font-bold text-white">
+                 <Star className="h-3.5 w-3.5 fill-yellow-500 text-yellow-500" />
+                 <Star className="h-3.5 w-3.5 fill-yellow-500 text-yellow-500" />
+                 <Star className="h-3.5 w-3.5 fill-yellow-500 text-yellow-500" />
+                 <Star className="h-3.5 w-3.5 fill-yellow-500 text-yellow-500" />
+                 <Star className="h-3.5 w-3.5 fill-yellow-500 text-yellow-500" />
+               </span>
+               <span className="text-gray-400">Mais de <strong className="text-white font-extrabold text-blue-400">10.000</strong> vendas realizadas</span>
+             </div>
           </div>
         </div>
       </section>
@@ -80,17 +96,17 @@ const Home: React.FC = () => {
       <div className="sticky top-16 z-40 border-b border-slate-800 bg-slate-950/95 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
             <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-hide">
-                {uniqueCategories.map((cat) => (
+                {TABS.map((tab) => (
                     <button
-                        key={cat}
-                        onClick={() => setActiveCategory(cat)}
+                        key={tab.id}
+                        onClick={() => setActiveCategory(tab.id)}
                         className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                            activeCategory === cat
+                            activeCategory === tab.id
                                 ? 'bg-white text-slate-950 shadow-md'
                                 : 'bg-slate-900 text-gray-400 hover:bg-slate-800 hover:text-white'
                         }`}
                     >
-                        {cat === 'all' ? 'All Products' : cat.charAt(0).toUpperCase() + cat.slice(1)}
+                        {tab.label}
                     </button>
                 ))}
             </div>

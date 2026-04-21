@@ -64,11 +64,11 @@ const ProductDetails: React.FC = () => {
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-2">
           {/* Left Column: Images */}
           <div className="space-y-4">
-            <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 aspect-[4/3] shadow-2xl">
+            <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 aspect-[4/3] shadow-2xl relative">
               <img
-                src={product.image}
-                alt={product.title}
-                className="h-full w-full object-cover"
+                src={getSelectedVariant()?.image || product.image}
+                alt={getSelectedVariant()?.name || product.title}
+                className="h-full w-full object-cover transition-opacity duration-300"
               />
             </div>
             {/* Small thumbnail gallery simulation */}
@@ -112,27 +112,42 @@ const ProductDetails: React.FC = () => {
                 {/* Variant/Plan Selector */}
                 {product.variants && product.variants.length > 0 && (
                     <div>
-                        <label className="mb-2 block text-sm font-medium text-gray-300">Select Plan</label>
+                        <label className="mb-2 block text-sm font-medium text-gray-300">
+                          {product.category === 'item' ? 'Select Item' : 'Select Plan'}
+                        </label>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             {product.variants.map((variant) => (
                                 <button 
                                     key={variant.id}
                                     onClick={() => setSelectedVariantId(variant.id)}
-                                    className={`relative flex items-center justify-between rounded-xl border p-4 text-left transition ${
+                                    className={`relative flex items-center justify-between rounded-xl border p-4 text-left transition overflow-hidden group ${
                                         selectedVariantId === variant.id 
                                         ? 'border-blue-500 bg-blue-500/10 ring-1 ring-blue-500' 
                                         : 'border-slate-800 bg-slate-900 hover:border-slate-700'
                                     }`}
                                 >
-                                    <div>
-                                        <div className="text-sm font-bold text-white">{variant.name}</div>
-                                        <div className="text-xs text-gray-400">{formatPrice(variant.price)}</div>
-                                    </div>
-                                    {selectedVariantId === variant.id && (
-                                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500 text-white">
-                                            <Check className="h-3 w-3" />
-                                        </div>
+                                    {/* Optional Variant Background Image blur */}
+                                    {variant.image && (
+                                        <div 
+                                          className="absolute inset-0 opacity-10 bg-cover bg-center transition-opacity group-hover:opacity-20"
+                                          style={{ backgroundImage: `url(${variant.image})` }}
+                                        />
                                     )}
+
+                                    <div className="flex items-center gap-3 relative z-10 w-full">
+                                        {variant.image && (
+                                            <img src={variant.image} alt={variant.name} className="w-12 h-12 rounded-lg object-cover bg-slate-950 border border-slate-800 shadow-sm shrink-0" />
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-sm font-bold text-white truncate">{variant.name}</div>
+                                            <div className="text-xs text-blue-400">{formatPrice(variant.price)}</div>
+                                        </div>
+                                        {selectedVariantId === variant.id && (
+                                            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500 text-white shrink-0 ml-2">
+                                                <Check className="h-3 w-3" />
+                                            </div>
+                                        )}
+                                    </div>
                                 </button>
                             ))}
                         </div>

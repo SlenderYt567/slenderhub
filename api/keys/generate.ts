@@ -16,7 +16,7 @@ export default async function handler(request: Request) {
 
     try {
         const body = await request.json();
-        const { userId, prefix, durationDays, note } = body;
+        const { userId, prefix, durationDays, note, scriptId } = body;
 
         console.log("Generating key for:", userId);
 
@@ -55,7 +55,8 @@ export default async function handler(request: Request) {
                 owner_id: userId,
                 key_string: keyString,
                 expires_at: expiresAt,
-                note: note || 'Default Key'
+                note: note || 'Default Key',
+                script_id: scriptId || null
             })
             .select()
             .single();

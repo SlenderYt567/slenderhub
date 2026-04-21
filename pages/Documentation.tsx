@@ -1,147 +1,177 @@
-import React, { useState } from 'react';
-import { Terminal, Copy, Check, Shield, Zap, Globe, Lock, Cpu, Info, ExternalLink } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Check, Copy, ExternalLink, Info, Lock, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Documentation: React.FC = () => {
-    const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const baseUrl = useMemo(() => window.location.origin, []);
 
-    const luaCode = `-- [ SlenderHub.shop ] - API Integration Example
-local LicenseKey = "SLENDER-XXXX-XXXX" -- Replace with the key you generated
-local UserID = game:GetService("Players").LocalPlayer.UserId
+  const luaCode = useMemo(
+    () => `-- [ SlenderHub ] - Loader integration example
+local LicenseKey = "SLENDER-XXXX-XXXX"
+local HWID = game:GetService("RbxAnalyticsService"):GetClientId()
 
-local function VerifyLicense(key)
-    local HttpService = game:GetService("HttpService")
-    local success, response = pcall(function()
-        return HttpService:GetAsync("https://www.slenderhub.shop/api/keys/verify?key=" .. key .. "&hwid=" .. UserID)
-    end)
+loadstring(game:HttpGet("${baseUrl}/api/scripts/loader?key=" .. LicenseKey .. "&hwid=" .. HWID))()`,
+    [baseUrl]
+  );
 
-    if success then
-        local data = HttpService:JSONDecode(response)
-        if data.success then
-            print("Successfully Authenticated! Tier: " .. data.data.tier)
-            return true
-        else
-            warn("Authentication Failed: " .. data.message)
-            return false
-        end
-    else
-        warn("Could not connect to SlenderHub servers.")
-        return false
-    end
-end
+  const verifyExample = useMemo(
+    () => `local HttpService = game:GetService("HttpService")
+local HWID = game:GetService("RbxAnalyticsService"):GetClientId()
+local response = HttpService:GetAsync("${baseUrl}/api/keys/verify?key=" .. LicenseKey .. "&hwid=" .. HWID)
+local data = HttpService:JSONDecode(response)
 
-if not VerifyLicense(LicenseKey) then
-    game:GetService("Players").LocalPlayer:Kick("Invalid SlenderKey!")
+if not data.success then
+    warn(data.message)
     return
-end
+end`,
+    [baseUrl]
+  );
 
-print("Hello World! This script is protected.")`;
+  const copyCode = async (value: string) => {
+    await navigator.clipboard.writeText(value);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
-    const copyCode = () => {
-        navigator.clipboard.writeText(luaCode);
-        setCopied(true);
-        setTimeout(() => setCopied(null), 2000);
-    };
-
-    return (
-        <div className="min-h-screen bg-[#020617] text-white pt-24 pb-12 px-4">
-            <div className="max-w-4xl mx-auto">
-                <div className="mb-12">
-                    <Link to="/dashboard" className="text-blue-400 hover:underline mb-4 inline-block">← Back to Dashboard</Link>
-                    <h1 className="text-4xl font-black mb-4">INTEGRATION <span className="text-blue-500">GUIDE</span></h1>
-                    <p className="text-gray-400">Step-by-step documentation on how to protect your scripts using SlenderKey API.</p>
-                </div>
-
-                {/* Requirements */}
-                <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-6 mb-8 flex items-start space-x-4">
-                    <Info className="w-6 h-6 text-blue-400 shrink-0 mt-1" />
-                    <div>
-                        <h3 className="font-bold text-blue-100">Prerequisites</h3>
-                        <p className="text-sm text-blue-300">Ensure your script execution environment supports <b>HttpService</b> or <b>game:HttpGet</b>. In Roblox Studio, you must enable "Allow HTTP Requests" in Game Settings.</p>
-                    </div>
-                </div>
-
-                {/* Steps */}
-                <div className="space-y-8">
-                    <section>
-                        <div className="flex items-center space-x-3 mb-4">
-                            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold">1</div>
-                            <h2 className="text-xl font-bold">Generate a Key</h2>
-                        </div>
-                        <p className="text-gray-400 ml-11 mb-4">Go to your <Link to="/developer-panel" className="text-blue-400 hover:underline">Developer Panel</Link> and click on <b>"Generate Key"</b>. Choose a prefix and a duration for your client's license.</p>
-                    </section>
-
-                    <section>
-                        <div className="flex items-center space-x-3 mb-4">
-                            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold">2</div>
-                            <h2 className="text-xl font-bold">Copy the Lua Code</h2>
-                        </div>
-                        <p className="text-gray-400 ml-11 mb-4">Add the following validation block at the <b>very top</b> of your Roblox script.</p>
-                        
-                        <div className="ml-11 bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
-                            <div className="flex items-center justify-between px-4 py-2 bg-slate-800/50 border-b border-slate-800">
-                                <span className="text-xs font-mono text-gray-500 uppercase">Luau Script</span>
-                                <button 
-                                    onClick={copyCode}
-                                    className="flex items-center space-x-2 text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded-lg transition-colors"
-                                >
-                                    {copied ? <Check className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3" />}
-                                    <span>{copied ? 'Copied' : 'Copy Code'}</span>
-                                </button>
-                            </div>
-                            <div className="p-6 overflow-x-auto">
-                                <pre className="text-sm font-mono text-blue-300 leading-relaxed">
-                                    {luaCode}
-                                </pre>
-                            </div>
-                        </div>
-                    </section>
-
-                    <section>
-                        <div className="flex items-center space-x-3 mb-4">
-                            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold">3</div>
-                            <h2 className="text-xl font-bold">How HWID Lock works</h2>
-                        </div>
-                        <div className="ml-11 space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="p-4 bg-slate-900/50 border border-slate-800 rounded-xl">
-                                    <div className="flex items-center space-x-2 mb-2 text-green-400">
-                                        <Lock className="w-4 h-4" />
-                                        <h4 className="font-bold">Automatic Lock</h4>
-                                    </div>
-                                    <p className="text-xs text-gray-400">The key will be locked to the first UserID/HWID that successfully authenticates. No one else can use that key.</p>
-                                </div>
-                                <div className="p-4 bg-slate-900/50 border border-slate-800 rounded-xl">
-                                    <div className="flex items-center space-x-2 mb-2 text-amber-500">
-                                        <RefreshCw className="w-4 h-4" />
-                                        <h4 className="font-bold">Easy Reset</h4>
-                                    </div>
-                                    <p className="text-xs text-gray-400">If your client changes PCs, you can reset their HWID with one click in the Developer Panel.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-                </div>
-
-                <div className="mt-16 pt-12 border-t border-slate-800 text-center">
-                    <p className="text-gray-500 mb-6 italic">Need more custom endpoints or complex protection?</p>
-                    <a 
-                        href="https://discord.gg/2B8TQ7A3MV" 
-                        target="_blank" 
-                        className="inline-flex items-center space-x-2 px-8 py-3 bg-[#5865F2] hover:bg-[#4752C4] rounded-xl font-bold transition-all transform hover:scale-105"
-                    >
-                        <span>Join Developer Discord</span>
-                        <ExternalLink className="w-4 h-4" />
-                    </a>
-                </div>
-            </div>
+  return (
+    <div className="min-h-screen bg-[#020617] px-4 pb-12 pt-24 text-white">
+      <div className="mx-auto max-w-4xl">
+        <div className="mb-12">
+          <Link to="/developer-panel" className="mb-4 inline-block text-blue-400 hover:underline">
+            Back to Dashboard
+          </Link>
+          <h1 className="mb-4 text-4xl font-black">
+            INTEGRATION <span className="text-blue-500">GUIDE</span>
+          </h1>
+          <p className="text-gray-400">
+            This guide now reflects the real routes used by the project so developers can copy a working integration path.
+          </p>
         </div>
-    );
-};
 
-// Simple placeholder for RefreshCw as it was missed in imports
-const RefreshCw = ({ className }: { className?: string }) => (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 11V7a5 5 0 0 1 5-5h0a5 5 0 0 1 5 5v4"/><path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1-9-9"/><path d="m16 16-4 4 4 4"/></svg>
-);
+        <div className="mb-8 flex items-start space-x-4 rounded-2xl border border-blue-500/20 bg-blue-500/10 p-6">
+          <Info className="mt-1 h-6 w-6 shrink-0 text-blue-400" />
+          <div>
+            <h3 className="font-bold text-blue-100">Prerequisites</h3>
+            <p className="text-sm text-blue-300">
+              Ensure the executor supports `game:HttpGet` or `HttpService`. In Roblox Studio, enable HTTP requests in
+              game settings before testing.
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-8">
+          <section>
+            <div className="mb-4 flex items-center space-x-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 font-bold">1</div>
+              <h2 className="text-xl font-bold">Create your script</h2>
+            </div>
+            <p className="ml-11 mb-4 text-gray-400">
+              Open the <Link to="/script-manager" className="text-blue-400 hover:underline">Script Manager</Link> and
+              create the protected script that the loader should deliver.
+            </p>
+          </section>
+
+          <section>
+            <div className="mb-4 flex items-center space-x-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 font-bold">2</div>
+              <h2 className="text-xl font-bold">Generate a key</h2>
+            </div>
+            <p className="ml-11 mb-4 text-gray-400">
+              In the <Link to="/developer-panel" className="text-blue-400 hover:underline">Developer Panel</Link>,
+              generate a key and optionally link it to a specific script.
+            </p>
+          </section>
+
+          <section>
+            <div className="mb-4 flex items-center space-x-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 font-bold">3</div>
+              <h2 className="text-xl font-bold">Use the loader endpoint</h2>
+            </div>
+            <p className="ml-11 mb-4 text-gray-400">
+              For the most Luarmor-like flow in this project, use the loader endpoint directly instead of manually
+              pulling script content.
+            </p>
+
+            <div className="ml-11 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+              <div className="flex items-center justify-between border-b border-slate-800 bg-slate-800/50 px-4 py-2">
+                <span className="text-xs uppercase text-gray-500">Luau Loader</span>
+                <button
+                  onClick={() => void copyCode(luaCode)}
+                  className="flex items-center space-x-2 rounded-lg bg-slate-700 px-3 py-1 text-xs transition-colors hover:bg-slate-600"
+                >
+                  {copied ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+                  <span>{copied ? 'Copied' : 'Copy Code'}</span>
+                </button>
+              </div>
+              <div className="overflow-x-auto p-6">
+                <pre className="text-sm leading-relaxed text-blue-300">{luaCode}</pre>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <div className="mb-4 flex items-center space-x-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 font-bold">4</div>
+              <h2 className="text-xl font-bold">Verify a key manually</h2>
+            </div>
+            <p className="ml-11 mb-4 text-gray-400">
+              If you need a pre-check before execution, the verification endpoint is available too.
+            </p>
+
+            <div className="ml-11 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+              <div className="border-b border-slate-800 bg-slate-800/50 px-4 py-2 text-xs uppercase text-gray-500">
+                Verification Example
+              </div>
+              <div className="overflow-x-auto p-6">
+                <pre className="text-sm leading-relaxed text-blue-300">{verifyExample}</pre>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <div className="mb-4 flex items-center space-x-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 font-bold">5</div>
+              <h2 className="text-xl font-bold">Understand HWID lock</h2>
+            </div>
+            <div className="ml-11 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+                <div className="mb-2 flex items-center space-x-2 text-green-400">
+                  <Lock className="h-4 w-4" />
+                  <h4 className="font-bold">Automatic Lock</h4>
+                </div>
+                <p className="text-xs text-gray-400">
+                  The key locks to the first HWID that successfully authenticates, preventing casual sharing.
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+                <div className="mb-2 flex items-center space-x-2 text-amber-500">
+                  <RefreshCw className="h-4 w-4" />
+                  <h4 className="font-bold">Manual Reset</h4>
+                </div>
+                <p className="text-xs text-gray-400">
+                  If a customer changes machine, you can reset the HWID from the Developer Panel.
+                </p>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div className="mt-16 border-t border-slate-800 pt-12 text-center">
+          <p className="mb-6 italic text-gray-500">Need a custom flow, webhook or stronger gateway validation?</p>
+          <a
+            href="https://discord.gg/2B8TQ7A3MV"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center space-x-2 rounded-xl bg-[#5865F2] px-8 py-3 font-bold transition-all hover:bg-[#4752C4]"
+          >
+            <span>Join Developer Discord</span>
+            <ExternalLink className="h-4 w-4" />
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default Documentation;

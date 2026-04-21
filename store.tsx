@@ -210,7 +210,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         id: v.id,
         product_id: product.id,
         name: v.name,
-        price: v.price
+        price: v.price,
+        image: v.image
       }));
       await supabase.from('product_variants').insert(variantsToInsert);
     }
@@ -246,7 +247,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         id: v.id,
         product_id: updatedProduct.id,
         name: v.name,
-        price: v.price
+        price: v.price,
+        image: v.image
       }));
       await supabase.from('product_variants').insert(variantsToInsert);
     }

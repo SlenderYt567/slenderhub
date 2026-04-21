@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, ShieldCheck, LogIn, LogOut, PlusCircle, Globe, Mail, LayoutDashboard, RefreshCcw, Lock } from 'lucide-react';
+import { ShoppingCart, ShieldCheck, LogIn, LogOut, PlusCircle, Globe, Mail, LayoutDashboard, RefreshCcw, Lock, Menu, X } from 'lucide-react';
 import { useStore } from '../store';
 
 const Navbar: React.FC = () => {
   const { cart, isAuthenticated, isAdmin, logout, currency, setCurrency } = useStore();
   const location = useLocation();
   const navigate = useNavigate();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const itemCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
   const isActive = (path: string) => location.pathname === path ? 'text-blue-500' : 'text-gray-400 hover:text-white';
@@ -14,6 +15,7 @@ const Navbar: React.FC = () => {
   const handleLogout = () => {
     logout();
     navigate('/');
+    setIsMenuOpen(false);
   };
 
   const toggleCurrency = () => {
@@ -61,6 +63,14 @@ const Navbar: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-4">
+          {/* Mobile Menu Button */}
+          <button 
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="md:hidden flex items-center justify-center rounded-lg bg-slate-800 p-2 text-gray-400 hover:bg-slate-700 hover:text-white transition"
+          >
+            {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+
           <button
             onClick={toggleCurrency}
             className="flex items-center gap-1 rounded-full bg-slate-800 px-3 py-1.5 text-xs font-bold text-gray-300 hover:bg-slate-700 hover:text-white transition"
@@ -109,6 +119,26 @@ const Navbar: React.FC = () => {
           </Link>
         </div>
       </div>
+      
+      {/* Mobile Nav Menu */}
+      {isMenuOpen && (
+        <div className="md:hidden border-t border-slate-800 bg-slate-950 px-4 py-4 space-y-3 shadow-xl">
+          <Link to="/" onClick={() => setIsMenuOpen(false)} className={`block text-base font-medium ${isActive('/')}`}>Shop</Link>
+          <Link to="/contact" onClick={() => setIsMenuOpen(false)} className={`block text-base font-medium ${isActive('/contact')}`}>Contact</Link>
+          <Link to="/pricing" onClick={() => setIsMenuOpen(false)} className={`block text-base font-medium ${isActive('/pricing')}`}>Pricing</Link>
+          
+          {isAuthenticated && (
+            <Link to="/developer-panel" onClick={() => setIsMenuOpen(false)} className={`block text-base font-medium ${isActive('/developer-panel')}`}>Developer Panel</Link>
+          )}
+
+          {isAdmin && (
+            <>
+              <Link to="/admin-dashboard" onClick={() => setIsMenuOpen(false)} className={`block text-base font-medium ${isActive('/admin-dashboard')}`}>Dashboard</Link>
+              <Link to="/admin" onClick={() => setIsMenuOpen(false)} className={`block text-base font-medium ${isActive('/admin')}`}>Add Product</Link>
+            </>
+          )}
+        </div>
+      )}
     </nav>
   );
 };

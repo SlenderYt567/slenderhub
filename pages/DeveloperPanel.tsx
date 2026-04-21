@@ -1,68 +1,126 @@
-import React, { useState, useEffect } from 'react';
-import { useStore } from '../store';
+import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { 
-  Key, Plus, RefreshCw, Trash2, Shield, 
-  Search, Terminal, Copy, Check, Clock, 
-  ExternalLink, Code, AlertCircle, Info 
+import { useStore } from '../store';
+import {
+  AlertCircle,
+  Check,
+  Clock,
+  Code,
+  Copy,
+  ExternalLink,
+  Info,
+  Key,
+  Plus,
+  RefreshCw,
+  Shield,
+  Trash2,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+type LicenseKeyRecord = {
+  id: string;
+  key_string: string;
+  note?: string | null;
+  hwid?: string | null;
+  is_active?: boolean | null;
+  expires_at?: string | null;
+  script_id?: string | null;
+};
+
+type ScriptSummary = {
+  id: string;
+  name: string;
+};
+
+type GatewayConfig = {
+  shortener_url?: string | null;
+  discord_url?: string | null;
+  youtube_url?: string | null;
+};
+
 const DeveloperPanel: React.FC = () => {
-  const { user, isAdminProfile } = useStore();
-  const [keys, setKeys] = useState<any[]>([]);
+  const { user } = useStore();
+  const [keys, setKeys] = useState<LicenseKeyRecord[]>([]);
+  const [scripts, setScripts] = useState<ScriptSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  
-  // States for new key modal
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newKeyConfig, setNewKeyConfig] = useState({
     prefix: 'SLENDER',
     durationDays: 30,
-    note: ''
+    note: '',
+    quantity: 1,
+    script_id: '',
   });
   const [generating, setGenerating] = useState(false);
+  const [generatedKeys, setGeneratedKeys] = useState<string[]>([]);
 
-  // States for gateway modal
   const [isGatewayModalOpen, setIsGatewayModalOpen] = useState(false);
-  const [gatewayConfig, setGatewayConfig] = useState<any>({
+  const [gatewayConfig, setGatewayConfig] = useState<GatewayConfig>({
     shortener_url: '',
     discord_url: '',
-    youtube_url: ''
+    youtube_url: '',
   });
   const [devTier, setDevTier] = useState<string>('none');
 
   useEffect(() => {
     if (user) {
-      fetchKeys();
+      void fetchPanelData();
+    } else {
+      setLoading(false);
     }
   }, [user]);
 
-  const fetchKeys = async () => {
+  const activeKeys = useMemo(
+    () => keys.filter((key) => key.is_active !== false).length,
+    [keys]
+  );
+
+  const lockedHwids = useMemo(
+    () => keys.filter((key) => Boolean(key.hwid)).length,
+    [keys]
+  );
+
+  const fetchPanelData = async () => {
+    if (!user) return;
+
     try {
       setLoading(true);
-      const { data, error: fetchError } = await supabase
-        .from('license_keys')
-        .select('*')
-        .eq('owner_id', user?.id)
-        .order('created_at', { ascending: false });
+      setError(null);
 
-      if (fetchError) throw fetchError;
-      setKeys(data || []);
+      const [{ data: keysData, error: keysError }, { data: scriptsData, error: scriptsError }, { data: profileData, error: profileError }] =
+        await Promise.all([
+          supabase
+            .from('license_keys')
+            .select('*')
+            .eq('owner_id', user.id)
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('protected_scripts')
+            .select('id, name')
+            .eq('owner_id', user.id)
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('profiles')
+            .select('shortener_url, discord_url, youtube_url, dev_tier')
+            .eq('id', user.id)
+            .maybeSingle(),
+        ]);
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('shortener_url, discord_url, youtube_url, dev_tier')
-        .eq('id', user?.id)
-        .single();
-      
-      if (profile) {
-        setGatewayConfig(profile);
-        setDevTier(profile.dev_tier || 'none');
+      if (keysError) throw keysError;
+      if (scriptsError) throw scriptsError;
+      if (profileError) throw profileError;
+
+      setKeys((keysData as LicenseKeyRecord[]) || []);
+      setScripts((scriptsData as ScriptSummary[]) || []);
+      if (profileData) {
+        setGatewayConfig(profileData);
+        setDevTier(profileData.dev_tier || 'none');
       }
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Failed to load developer data.');
     } finally {
       setLoading(false);
     }
@@ -70,252 +128,343 @@ const DeveloperPanel: React.FC = () => {
 
   const handleGenerateKey = async () => {
     if (!user) return;
-    setGenerating(true);
-    try {
-      const { data, error } = await supabase.rpc('generate_license_key', {
-        target_prefix: newKeyConfig.prefix || 'SLENDER',
-        target_duration_days: newKeyConfig.durationDays,
-        target_note: newKeyConfig.note
-      });
 
-      if (error) throw error;
-      
-      if (data && data.success) {
+    const amount = Math.min(Math.max(1, newKeyConfig.quantity), 100);
+    setGenerating(true);
+    setGeneratedKeys([]);
+
+    try {
+      const generatedList: string[] = [];
+
+      for (let i = 0; i < amount; i += 1) {
+        const response = await fetch('/api/keys/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: user.id,
+            prefix: newKeyConfig.prefix || 'SLENDER',
+            durationDays: newKeyConfig.durationDays,
+            note: newKeyConfig.note,
+            scriptId: newKeyConfig.script_id || null,
+          }),
+        });
+
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error || 'Failed to generate key.');
+        }
+
+        if (payload?.success && payload?.key?.key_string) {
+          generatedList.push(payload.key.key_string);
+        }
+      }
+
+      setGeneratedKeys(generatedList);
+      await fetchPanelData();
+
+      if (amount === 1) {
         setIsModalOpen(false);
-        fetchKeys();
-      } else {
-        alert(data?.error || 'Failed to generate key');
       }
     } catch (err: any) {
-      alert(err.message);
+      alert(err.message || 'Failed to generate key.');
     } finally {
       setGenerating(false);
     }
   };
 
   const handleResetHWID = async (keyId: string) => {
+    if (!user) return;
     if (!confirm('Are you sure you want to reset the HWID for this key?')) return;
+
     try {
-      const { data, error } = await supabase.rpc('reset_license_hwid', {
-        target_key_id: keyId
+      const response = await fetch('/api/keys/reset-hwid', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          keyId,
+          userId: user.id,
+        }),
       });
 
-      if (error) throw error;
-
-      if (data && data.success) {
-        fetchKeys();
-      } else {
-        alert(data?.error || 'Failed to reset HWID');
+      const payload = await response.json();
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error || payload.message || 'Failed to reset HWID.');
       }
+
+      await fetchPanelData();
     } catch (err: any) {
-      alert(err.message);
+      alert(err.message || 'Failed to reset HWID.');
+    }
+  };
+
+  const handleBanKey = async (keyId: string, currentState: boolean | null | undefined) => {
+    if (!confirm(`Are you sure you want to ${currentState !== false ? 'ban/deactivate' : 'unban/activate'} this key?`)) {
+      return;
+    }
+
+    try {
+      const { error: updateError } = await supabase
+        .from('license_keys')
+        .update({ is_active: currentState === false })
+        .eq('id', keyId)
+        .eq('owner_id', user?.id);
+
+      if (updateError) throw updateError;
+      await fetchPanelData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to update key status.');
     }
   };
 
   const handleSaveGateway = async () => {
     try {
       setGenerating(true);
-      const { error } = await supabase
+
+      const { error: updateError } = await supabase
         .from('profiles')
         .update({
-          shortener_url: gatewayConfig.shortener_url,
-          discord_url: gatewayConfig.discord_url,
-          youtube_url: gatewayConfig.youtube_url
+          shortener_url: gatewayConfig.shortener_url || null,
+          discord_url: gatewayConfig.discord_url || null,
+          youtube_url: gatewayConfig.youtube_url || null,
         })
         .eq('id', user?.id);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
+
       setIsGatewayModalOpen(false);
-      alert('Gateway Settings Saved Successfully!');
+      alert('Gateway settings saved successfully.');
+      await fetchPanelData();
     } catch (err: any) {
-      alert(err.message);
+      alert(err.message || 'Failed to save gateway settings.');
     } finally {
       setGenerating(false);
     }
   };
 
-  const copyToClipboard = (text: string, isKey: boolean = true) => {
+  const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
-    setCopiedKey(isKey ? text : 'URL-' + text);
+    setCopiedKey(id);
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
+  const appBaseUrl = `${window.location.origin}${window.location.pathname}`;
+
   return (
-    <div className="min-h-screen bg-[#020617] text-white pt-24 pb-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+    <div className="min-h-screen bg-[#020617] px-4 pb-12 pt-24 text-white sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-center">
           <div>
-            <h1 className="text-4xl font-black tracking-tight mb-2">
-              DEVELOPER <span className="bg-gradient-to-r from-blue-500 to-indigo-500 bg-clip-text text-transparent">PANEL</span>
-            </h1>
-            <p className="text-gray-400">Manage your script licenses, keys and HWID resets.</p>
+            <div className="mb-2 flex items-center space-x-3">
+              <div className="rounded-lg bg-blue-500/10 p-2">
+                <Shield className="h-6 w-6 text-blue-500" />
+              </div>
+              <h1 className="text-3xl font-black tracking-tight">
+                <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">DASHBOARD</span>
+              </h1>
+            </div>
+            <p className="max-w-2xl text-sm leading-relaxed text-gray-400">
+              Centralize key generation, gateway configuration and protected scripts in one place. This is the core area
+              that most needs to feel reliable and consistent for your developers.
+            </p>
           </div>
-          
-          <div className="flex gap-4">
-            <button
-              onClick={() => setIsGatewayModalOpen(true)}
-              className="flex items-center space-x-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors border border-slate-700"
+
+          <div className="flex flex-wrap gap-3">
+            <Link
+              to="/script-manager"
+              className="flex items-center space-x-2 rounded-lg border border-indigo-500/30 bg-indigo-600/20 px-4 py-2 font-semibold text-indigo-400 transition-all hover:bg-indigo-600 hover:text-white"
             >
-              <ExternalLink className="w-4 h-4" />
-              <span>Gateway Settings</span>
-            </button>
-            <Link 
-              to="/documentation"
-              className="flex items-center space-x-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors border border-slate-700"
-            >
-              <Code className="w-4 h-4" />
-              <span>Integration Guide</span>
+              <Code className="h-4 w-4" />
+              <span>Manage Scripts</span>
             </Link>
             <button
-              onClick={() => setIsModalOpen(true)}
-              className="flex items-center space-x-2 px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors shadow-lg shadow-blue-500/20"
+              onClick={() => setIsGatewayModalOpen(true)}
+              className="flex items-center space-x-2 rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 transition-colors hover:bg-slate-700"
             >
-              <Plus className="w-4 h-4" />
+              <ExternalLink className="h-4 w-4" />
+              <span>Gateway</span>
+            </button>
+            <Link
+              to="/documentation"
+              className="flex items-center space-x-2 rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 transition-colors hover:bg-slate-700"
+            >
+              <Info className="h-4 w-4" />
+              <span>Integration</span>
+            </Link>
+            <button
+              onClick={() => {
+                setGeneratedKeys([]);
+                setIsModalOpen(true);
+              }}
+              className="flex items-center space-x-2 rounded-lg bg-blue-600 px-6 py-2 shadow-lg shadow-blue-500/20 transition-colors hover:bg-blue-500"
+            >
+              <Plus className="h-4 w-4" />
               <span>Generate Key</span>
             </button>
           </div>
         </div>
 
-        {/* Upgrade Banner — shown when user has no dev plan */}
+        {error && (
+          <div className="mb-8 rounded-2xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-300">
+            {error}
+          </div>
+        )}
+
         {devTier === 'none' && !loading && (
-          <div className="mb-8 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="mb-8 flex flex-col items-start justify-between gap-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5 sm:flex-row sm:items-center">
             <div className="flex items-start gap-3">
-              <span className="text-2xl">⚠️</span>
+              <AlertCircle className="mt-0.5 h-6 w-6 text-amber-400" />
               <div>
-                <h3 className="font-bold text-amber-300 mb-1">Plano Não Ativado</h3>
-                <p className="text-sm text-gray-400">Você ainda não possui um plano SlenderKey ativo. Adquira um plano para gerar chaves de licença.</p>
+                <h3 className="mb-1 font-bold text-amber-300">Developer plan not active</h3>
+                <p className="text-sm text-gray-400">
+                  Activate a plan before generating production keys. This also helps keep the gateway and script system
+                  consistent with the product you want to offer.
+                </p>
               </div>
             </div>
             <Link
               to="/pricing"
-              className="shrink-0 flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-2.5 text-sm font-bold text-white hover:from-amber-400 hover:to-orange-400 transition-all shadow-lg shadow-amber-500/20"
+              className="shrink-0 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-amber-500/20 transition-all hover:from-amber-400 hover:to-orange-400"
             >
-              Ver Planos
+              View Plans
             </Link>
           </div>
         )}
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl backdrop-blur-sm">
-            <div className="flex items-center space-x-3 mb-4">
-              <Key className="w-5 h-5 text-blue-400" />
-              <h3 className="text-gray-400 font-medium">Total Keys</h3>
+        <div className="mb-12 grid grid-cols-1 gap-6 md:grid-cols-3">
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 backdrop-blur-sm">
+            <div className="mb-4 flex items-center space-x-3">
+              <Key className="h-5 w-5 text-blue-400" />
+              <h3 className="font-medium text-gray-400">Total Keys</h3>
             </div>
             <p className="text-3xl font-bold">{keys.length}</p>
           </div>
-          <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl backdrop-blur-sm">
-            <div className="flex items-center space-x-3 mb-4">
-              <Shield className="w-5 h-5 text-green-400" />
-              <h3 className="text-gray-400 font-medium">Active Licenses</h3>
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 backdrop-blur-sm">
+            <div className="mb-4 flex items-center space-x-3">
+              <Shield className="h-5 w-5 text-green-400" />
+              <h3 className="font-medium text-gray-400">Active Licenses</h3>
             </div>
-            <p className="text-3xl font-bold">{keys.filter(k => k.is_active).length}</p>
+            <p className="text-3xl font-bold">{activeKeys}</p>
           </div>
-          <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl backdrop-blur-sm">
-            <div className="flex items-center space-x-3 mb-4">
-              <AlertCircle className="w-5 h-5 text-amber-400" />
-              <h3 className="text-gray-400 font-medium">Locked HWIDs</h3>
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 backdrop-blur-sm">
+            <div className="mb-4 flex items-center space-x-3">
+              <AlertCircle className="h-5 w-5 text-amber-400" />
+              <h3 className="font-medium text-gray-400">Locked HWIDs</h3>
             </div>
-            <p className="text-3xl font-bold">{keys.filter(k => k.hwid).length}</p>
+            <p className="text-3xl font-bold">{lockedHwids}</p>
           </div>
         </div>
 
-        {/* Keys Table */}
-        <div className="bg-slate-900/50 border border-slate-800 rounded-3xl overflow-hidden backdrop-blur-sm">
+        <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/50 backdrop-blur-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-slate-800 bg-slate-900/50">
-                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">License Key</th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Customer Note</th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">HWID Status</th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Expires</th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Actions</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-gray-400">License Key</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-gray-400">Customer Note</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-gray-400">HWID Status</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-gray-400">Expires</th>
+                  <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-gray-400">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
                 {loading ? (
-                  Array.from({ length: 3 }).map((_, i) => (
-                    <tr key={i} className="animate-pulse">
-                      <td colSpan={5} className="px-6 py-8 h-4 bg-slate-800/10"></td>
+                  Array.from({ length: 3 }).map((_, index) => (
+                    <tr key={index} className="animate-pulse">
+                      <td colSpan={5} className="h-4 bg-slate-800/10 px-6 py-8" />
                     </tr>
                   ))
                 ) : keys.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
-                      No keys generated yet. Click "Generate Key" to start.
+                      No keys generated yet. Click &quot;Generate Key&quot; to start.
                     </td>
                   </tr>
                 ) : (
-                  keys.map((key) => (
-                    <tr key={key.id} className="hover:bg-slate-800/20 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center space-x-3">
-                          <code className="text-blue-400 font-mono bg-blue-500/10 px-2 py-1 rounded">
-                            {key.key_string}
-                          </code>
-                          <button 
-                            onClick={() => copyToClipboard(key.key_string, true)}
-                            title="Copy Key"
-                            className="text-gray-500 hover:text-white transition-colors"
-                          >
-                            {copiedKey === key.key_string ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-                          </button>
-                          <button 
-                            onClick={() => {
-                              const baseUrl = window.location.origin + window.location.pathname;
-                              copyToClipboard(`${baseUrl}#/unlock/${key.key_string}`, false);
-                            }}
-                            title="Copy Gateway Link"
-                            className="text-blue-500 hover:text-blue-400 transition-colors"
-                          >
-                            {copiedKey === 'URL-' + key.key_string ? <Check className="w-4 h-4 text-green-500" /> : <ExternalLink className="w-4 h-4" />}
-                          </button>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-gray-300">{key.note}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        {key.hwid ? (
-                          <div className="flex items-center space-x-2 text-green-400 text-xs">
-                            <Shield className="w-3 h-3" />
-                            <span>Locked</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center space-x-2 text-gray-500 text-xs">
-                            <Clock className="w-3 h-3" />
-                            <span>Unused</span>
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-xs text-gray-400">
-                          {key.expires_at ? new Date(key.expires_at).toLocaleDateString() : 'Lifetime'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end space-x-2">
-                          {key.hwid && (
+                  keys.map((key) => {
+                    const gatewayLink = `${appBaseUrl}#/unlock/${key.key_string}`;
+                    const isActive = key.is_active !== false;
+
+                    return (
+                      <tr key={key.id} className="transition-colors hover:bg-slate-800/20">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center space-x-3">
+                            <code className="rounded bg-blue-500/10 px-2 py-1 font-mono text-blue-400">
+                              {key.key_string}
+                            </code>
                             <button
-                              onClick={() => handleResetHWID(key.id)}
-                              title="Reset HWID"
-                              className="p-2 text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors"
+                              onClick={() => copyToClipboard(key.key_string, `key-${key.id}`)}
+                              title="Copy key"
+                              className="text-gray-500 transition-colors hover:text-white"
                             >
-                              <RefreshCw className="w-4 h-4" />
+                              {copiedKey === `key-${key.id}` ? (
+                                <Check className="h-4 w-4 text-green-500" />
+                              ) : (
+                                <Copy className="h-4 w-4" />
+                              )}
                             </button>
+                            <button
+                              onClick={() => copyToClipboard(gatewayLink, `url-${key.id}`)}
+                              title="Copy gateway link"
+                              className="text-blue-500 transition-colors hover:text-blue-400"
+                            >
+                              {copiedKey === `url-${key.id}` ? (
+                                <Check className="h-4 w-4 text-green-500" />
+                              ) : (
+                                <ExternalLink className="h-4 w-4" />
+                              )}
+                            </button>
+                          </div>
+                          {key.script_id && (
+                            <div className="mt-2 flex items-center space-x-1 text-xs text-indigo-400">
+                              <Code className="h-3 w-3" />
+                              <span>Linked to a script</span>
+                            </div>
                           )}
-                          <button
-                            title="Deactivate"
-                            className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm text-gray-300">{key.note || 'No note'}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          {key.hwid ? (
+                            <div className="flex items-center space-x-2 text-xs text-green-400">
+                              <Shield className="h-3 w-3" />
+                              <span>Locked</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center space-x-2 text-xs text-gray-500">
+                              <Clock className="h-3 w-3" />
+                              <span>Unused</span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-xs text-gray-400">
+                            {key.expires_at ? new Date(key.expires_at).toLocaleDateString() : 'Lifetime'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end space-x-2">
+                            {key.hwid && (
+                              <button
+                                onClick={() => handleResetHWID(key.id)}
+                                title="Reset HWID"
+                                className="rounded-lg p-2 text-amber-500 transition-colors hover:bg-amber-500/10"
+                              >
+                                <RefreshCw className="h-4 w-4" />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleBanKey(key.id, key.is_active)}
+                              title={isActive ? 'Ban / revoke access' : 'Unban'}
+                              className={`rounded-lg p-2 transition-colors ${isActive ? 'text-red-500 hover:bg-red-500/10' : 'text-green-500 hover:bg-green-500/10'}`}
+                            >
+                              {isActive ? <Trash2 className="h-4 w-4" /> : <RefreshCw className="h-4 w-4" />}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -323,30 +472,29 @@ const DeveloperPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* Generate Key Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-[#0f172a] border border-slate-800 w-full max-w-md rounded-3xl p-8 shadow-2xl">
-            <h2 className="text-2xl font-bold mb-6">Generate New Key</h2>
-            
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-[#0f172a] p-8 shadow-2xl">
+            <h2 className="mb-6 text-2xl font-bold">Generate New Key</h2>
+
             <div className="space-y-4">
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Key Prefix</label>
-                <input 
-                  type="text" 
+                <label className="mb-1 block text-sm text-gray-400">Key Prefix</label>
+                <input
+                  type="text"
                   value={newKeyConfig.prefix}
-                  onChange={(e) => setNewKeyConfig({...newKeyConfig, prefix: e.target.value.toUpperCase()})}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                  onChange={(e) => setNewKeyConfig({ ...newKeyConfig, prefix: e.target.value.toUpperCase() })}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="EX: SLENDER"
                 />
               </div>
-              
+
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Duration (Days)</label>
-                <select 
+                <label className="mb-1 block text-sm text-gray-400">Duration (Days)</label>
+                <select
                   value={newKeyConfig.durationDays}
-                  onChange={(e) => setNewKeyConfig({...newKeyConfig, durationDays: parseInt(e.target.value)})}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                  onChange={(e) => setNewKeyConfig({ ...newKeyConfig, durationDays: parseInt(e.target.value, 10) })}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value={1}>1 Day</option>
                   <option value={7}>7 Days</option>
@@ -357,27 +505,66 @@ const DeveloperPanel: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Internal Note (Customer Name)</label>
-                <input 
-                  type="text" 
+                <label className="mb-1 block text-sm text-gray-400">Internal Note (Customer Name)</label>
+                <input
+                  type="text"
                   value={newKeyConfig.note}
-                  onChange={(e) => setNewKeyConfig({...newKeyConfig, note: e.target.value})}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                  onChange={(e) => setNewKeyConfig({ ...newKeyConfig, note: e.target.value })}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Ex: John Doe"
                 />
               </div>
 
-              <div className="pt-4 flex gap-4">
-                <button 
-                  onClick={() => setIsModalOpen(false)}
-                  className="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors"
+              <div>
+                <label className="mb-1 block text-sm text-gray-400">Link to Script</label>
+                <select
+                  value={newKeyConfig.script_id}
+                  onChange={(e) => setNewKeyConfig({ ...newKeyConfig, script_id: e.target.value })}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  Cancel
+                  <option value="">Global Key (access to every compatible script)</option>
+                  {scripts.map((script) => (
+                    <option key={script.id} value={script.id}>
+                      {script.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm text-gray-400">Quantity</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={newKeyConfig.quantity}
+                  onChange={(e) => setNewKeyConfig({ ...newKeyConfig, quantity: parseInt(e.target.value, 10) || 1 })}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {generatedKeys.length > 1 && (
+                <div className="mt-4 animate-in fade-in">
+                  <label className="mb-1 block text-sm font-bold text-green-400">Generated Keys ({generatedKeys.length})</label>
+                  <textarea
+                    readOnly
+                    value={generatedKeys.join('\n')}
+                    className="h-32 w-full rounded-xl border border-green-500/30 bg-slate-950 px-4 py-2 font-mono text-sm text-green-400 focus:outline-none"
+                  />
+                </div>
+              )}
+
+              <div className="flex gap-4 pt-4">
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="flex-1 rounded-xl bg-slate-800 px-4 py-2 transition-colors hover:bg-slate-700"
+                >
+                  {generatedKeys.length > 1 ? 'Close' : 'Cancel'}
                 </button>
-                <button 
+                <button
                   onClick={handleGenerateKey}
                   disabled={generating}
-                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl transition-colors font-bold disabled:opacity-50"
+                  className="flex-1 rounded-xl bg-blue-600 px-4 py-2 font-bold transition-colors hover:bg-blue-500 disabled:opacity-50"
                 >
                   {generating ? 'Generating...' : 'Confirm'}
                 </button>
@@ -387,39 +574,47 @@ const DeveloperPanel: React.FC = () => {
         </div>
       )}
 
-      {/* Gateway Settings Modal */}
       {isGatewayModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-[#0f172a] border border-slate-800 w-full max-w-lg rounded-3xl p-8 shadow-2xl">
-            <div className="flex items-center space-x-3 mb-6">
-              <ExternalLink className="w-6 h-6 text-blue-500" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-3xl border border-slate-800 bg-[#0f172a] p-8 shadow-2xl">
+            <div className="mb-6 flex items-center space-x-3">
+              <ExternalLink className="h-6 w-6 text-blue-500" />
               <h2 className="text-2xl font-bold">Gateway Config</h2>
             </div>
-            
+
             <div className="space-y-4">
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Linkvertise User ID (Optional)</label>
+                <label className="mb-1 block text-sm text-gray-400">Linkvertise User ID (Optional)</label>
                 <div className="flex items-center space-x-2">
-                  <input 
-                    type="text" 
-                    value={gatewayConfig?.shortener_url || ''}
-                    onChange={(e) => setGatewayConfig({...gatewayConfig, shortener_url: e.target.value.replace(/[^0-9]/g, '')})}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-sm placeholder-gray-600"
+                  <input
+                    type="text"
+                    value={gatewayConfig.shortener_url || ''}
+                    onChange={(e) => setGatewayConfig({ ...gatewayConfig, shortener_url: e.target.value.replace(/[^0-9]/g, '') })}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm outline-none placeholder:text-gray-600 focus:ring-2 focus:ring-blue-500"
                     placeholder="ex: 982465"
                   />
-                  <a href="https://publisher.linkvertise.com/ac/links" target="_blank" className="text-blue-500 hover:text-blue-400 text-sm whitespace-nowrap">Find ID</a>
+                  <a
+                    href="https://publisher.linkvertise.com/ac/links"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="whitespace-nowrap text-sm text-blue-500 hover:text-blue-400"
+                  >
+                    Find ID
+                  </a>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">If provided, the site will automatically generate dynamic Linkvertise ads for every key.</p>
+                <p className="mt-1 text-xs text-gray-500">
+                  If provided, the site will generate Linkvertise dynamic ads for each unlock flow.
+                </p>
               </div>
 
-              <div className="bg-blue-500/5 border border-blue-500/10 rounded-2xl p-4">
+              <div className="rounded-2xl border border-blue-500/10 bg-blue-500/5 p-4">
                 <div className="flex items-start gap-3">
-                  <Info className="w-5 h-5 text-blue-400 mt-0.5" />
+                  <Info className="mt-0.5 h-5 w-5 text-blue-400" />
                   <div>
-                    <h4 className="text-sm font-bold text-blue-300 mb-1">Custom Shortener / Manual Mode</h4>
-                    <p className="text-xs text-gray-400 leading-relaxed">
-                      If you use Monetag, LootLabs or other shorteners, set your "Destination URL" to:
-                      <code className="block mt-2 p-2 bg-slate-950 rounded border border-slate-800 text-blue-400 break-all select-all">
+                    <h4 className="mb-1 text-sm font-bold text-blue-300">Custom Shortener / Manual Mode</h4>
+                    <p className="text-xs leading-relaxed text-gray-400">
+                      If you use Monetag, LootLabs or another shortener, set the destination URL to:
+                      <code className="mt-2 block break-all rounded border border-slate-800 bg-slate-950 p-2 text-blue-400 select-all">
                         {window.location.origin}/#/verify-gateway
                       </code>
                     </p>
@@ -428,38 +623,38 @@ const DeveloperPanel: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-1">YouTube Required Channel URL</label>
-                <input 
-                  type="url" 
-                  value={gatewayConfig?.youtube_url || ''}
-                  onChange={(e) => setGatewayConfig({...gatewayConfig, youtube_url: e.target.value})}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 focus:ring-2 focus:ring-red-500 outline-none text-sm placeholder-gray-600"
+                <label className="mb-1 block text-sm text-gray-400">YouTube Required Channel URL</label>
+                <input
+                  type="url"
+                  value={gatewayConfig.youtube_url || ''}
+                  onChange={(e) => setGatewayConfig({ ...gatewayConfig, youtube_url: e.target.value })}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm outline-none placeholder:text-gray-600 focus:ring-2 focus:ring-red-500"
                   placeholder="https://youtube.com/@..."
                 />
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Discord Invite URL</label>
-                <input 
-                  type="url" 
-                  value={gatewayConfig?.discord_url || ''}
-                  onChange={(e) => setGatewayConfig({...gatewayConfig, discord_url: e.target.value})}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none text-sm placeholder-gray-600"
+                <label className="mb-1 block text-sm text-gray-400">Discord Invite URL</label>
+                <input
+                  type="url"
+                  value={gatewayConfig.discord_url || ''}
+                  onChange={(e) => setGatewayConfig({ ...gatewayConfig, discord_url: e.target.value })}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm outline-none placeholder:text-gray-600 focus:ring-2 focus:ring-indigo-500"
                   placeholder="https://discord.gg/..."
                 />
               </div>
 
-              <div className="pt-4 flex gap-4">
-                <button 
+              <div className="flex gap-4 pt-4">
+                <button
                   onClick={() => setIsGatewayModalOpen(false)}
-                  className="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors"
+                  className="flex-1 rounded-xl bg-slate-800 px-4 py-2 transition-colors hover:bg-slate-700"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   onClick={handleSaveGateway}
                   disabled={generating}
-                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl transition-colors font-bold disabled:opacity-50"
+                  className="flex-1 rounded-xl bg-blue-600 px-4 py-2 font-bold transition-colors hover:bg-blue-500 disabled:opacity-50"
                 >
                   {generating ? 'Saving...' : 'Save Settings'}
                 </button>

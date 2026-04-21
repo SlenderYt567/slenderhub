@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useStore } from '../store';
 import { ArrowLeft, Check, Copy, Loader2, MessageSquare, Upload, FileCheck, Globe, HelpCircle } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { PayPalButtons, usePayPalScriptReducer } from '@paypal/react-paypal-js';
 
 // Compresses a base64 image to max 800px and quality 70% to avoid Supabase payload limits
 const compressImage = (base64: string, maxSize = 800, quality = 0.7): Promise<string> => {
@@ -25,10 +24,11 @@ const compressImage = (base64: string, maxSize = 800, quality = 0.7): Promise<st
     });
 };
 
+const paypalQrCodeImage = 'https://glamorous-red-nsffxj80a2.edgeone.app/qr%20paypal.png';
+
 const Checkout: React.FC = () => {
     const { cart, totalCartValue, clearCart, createChat, isAuthenticated, user, formatPrice, exchangeRate, currency } = useStore();
     const navigate = useNavigate();
-    const [{ isPending: paypalLoading }] = usePayPalScriptReducer();
     const [step, setStep] = useState<'review' | 'payment' | 'success'>('review');
     const [loading, setLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -77,7 +77,7 @@ const Checkout: React.FC = () => {
 
         if (paymentMethod === 'pix' && (!contactEmail || !contactEmail.includes('@'))) {
             setEmailError(true);
-            alert("Por favor insira um e-mail válido para entrega.");
+            alert("Por favor insira um e-mail vÃ¡lido para entrega.");
             return;
         }
 
@@ -88,7 +88,7 @@ const Checkout: React.FC = () => {
         const emailToDisplay = contactEmail || user?.email || "";
         const customerNameAndEmail = emailToDisplay ? `${baseName} (${emailToDisplay})` : baseName;
 
-        // Fire email notification with 8s timeout — non-blocking, never stalls the checkout
+        // Fire email notification with 8s timeout â€” non-blocking, never stalls the checkout
         const emailController = new AbortController();
         const emailTimeout = setTimeout(() => emailController.abort(), 8000);
         fetch('/api/email', {
@@ -303,8 +303,6 @@ const Checkout: React.FC = () => {
                                         </div>
                                     </div>
 
-
-
                                     <div className="mb-6">
                                         <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-gray-500">Pix Copy and Paste</label>
                                         <div className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-950 p-2">
@@ -383,16 +381,29 @@ const Checkout: React.FC = () => {
                                                 <Globe className="h-6 w-6" />
                                             </div>
                                             <div>
-                                                <h2 className="text-lg font-bold text-white">Pay with PayPal</h2>
-                                                <p className="text-xs text-gray-400">Secure payment — accepts cards, PayPal balance & more</p>
+                                                <h2 className="text-lg font-bold text-white">Pay with PayPal QR</h2>
+                                                <p className="text-xs text-gray-400">Scan the QR code below and confirm your international payment here.</p>
                                             </div>
                                         </div>
 
-                                        {/* Order summary before PayPal */}
+                                        <div className="mb-6 rounded-2xl border border-indigo-500/30 bg-slate-950 p-4">
+                                            <p className="mb-3 text-sm font-semibold text-white">PayPal QR Code</p>
+                                            <p className="mb-4 text-xs text-gray-400">
+                                                International customers can scan the QR code below to pay directly with PayPal.
+                                            </p>
+                                            <div className="overflow-hidden rounded-2xl bg-white p-3">
+                                                <img
+                                                    src={paypalQrCodeImage}
+                                                    alt="PayPal QR Code"
+                                                    className="mx-auto w-full max-w-sm rounded-xl object-contain"
+                                                />
+                                            </div>
+                                        </div>
+
                                         <div className="mb-4 rounded-xl border border-slate-700 bg-slate-950 p-4 text-sm">
                                             {cart.map(item => (
                                                 <div key={item.id} className="flex justify-between py-1 text-gray-300">
-                                                    <span>{item.title} {item.selectedVariant ? `— ${item.selectedVariant.name}` : ''} <span className="text-gray-500">x{item.quantity}</span></span>
+                                                    <span>{item.title} {item.selectedVariant ? `â€” ${item.selectedVariant.name}` : ''} <span className="text-gray-500">x{item.quantity}</span></span>
                                                     <span>{formatPrice(item.price * item.quantity)}</span>
                                                 </div>
                                             ))}
@@ -408,7 +419,6 @@ const Checkout: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        {/* Contact email for PayPal */}
                                         <div className="mb-4">
                                             <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-gray-500">Your Email (for order confirmation)</label>
                                             <input
@@ -420,68 +430,16 @@ const Checkout: React.FC = () => {
                                             />
                                         </div>
 
-                                        {/* PayPal Buttons */}
-                                        {paypalLoading ? (
-                                            <div className="flex justify-center py-6">
-                                                <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
-                                            </div>
-                                        ) : (
-                                            <PayPalButtons
-                                                style={{ layout: 'vertical', color: 'blue', shape: 'rect', label: 'pay' }}
-                                                disabled={cart.length === 0}
-                                                createOrder={(_data, actions) => {
-                                                    return actions.order.create({
-                                                        intent: 'CAPTURE',
-                                                        purchase_units: [{
-                                                            amount: {
-                                                                currency_code: 'USD',
-                                                                value: totalCartValue.toFixed(2),
-                                                                breakdown: {
-                                                                    item_total: {
-                                                                        currency_code: 'USD',
-                                                                        value: totalCartValue.toFixed(2)
-                                                                    }
-                                                                }
-                                                            },
-                                                            items: cart.map(item => ({
-                                                                name: item.title + (item.selectedVariant ? ` - ${item.selectedVariant.name}` : ''),
-                                                                unit_amount: {
-                                                                    currency_code: 'USD',
-                                                                    value: item.price.toFixed(2)
-                                                                },
-                                                                quantity: String(item.quantity)
-                                                            }))
-                                                        }]
-                                                    });
-                                                }}
-                                                onApprove={async (_data, actions) => {
-                                                    setSubmitting(true);
-                                                    try {
-                                                        const details = await actions.order!.capture();
-                                                        const payerEmail = details.payer?.email_address || contactEmail || 'paypal-customer';
-                                                        const payerName = details.payer?.name?.given_name || user?.email?.split('@')[0] || 'Customer';
-                                                        const customerLabel = `${payerName} (${payerEmail}) — PayPal`;
-                                                        const orderId = details.id || '';
-                                                        const chatId = await createChat(customerLabel, `PayPal Order ID: ${orderId}`, totalCartValue);
-                                                        clearCart();
-                                                        setCreatedChatId(chatId);
-                                                        setStep('success');
-                                                    } catch (err: any) {
-                                                        console.error('PayPal capture error', err);
-                                                        alert('Erro ao processar pagamento: ' + (err?.message || 'Tente novamente.'));
-                                                    } finally {
-                                                        setSubmitting(false);
-                                                    }
-                                                }}
-                                                onError={(err) => {
-                                                    console.error('PayPal error', err);
-                                                    alert('Erro no PayPal. Tente novamente ou use outro método.');
-                                                }}
-                                            />
-                                        )}
+                                        <button
+                                            onClick={handleFinish}
+                                            disabled={submitting || cart.length === 0}
+                                            className="w-full flex justify-center items-center gap-2 rounded-xl bg-indigo-600 py-4 font-bold text-white transition hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : 'I Paid with PayPal QR'}
+                                        </button>
 
                                         <div className="mt-4 border-t border-slate-800 pt-4 text-center">
-                                            <p className="text-xs text-gray-500 mb-2">Prefer other options?</p>
+                                            <p className="text-xs text-gray-500 mb-2">Need help with international payment?</p>
                                             <a
                                                 href="https://discord.gg/2B8TQ7A3MV"
                                                 target="_blank"

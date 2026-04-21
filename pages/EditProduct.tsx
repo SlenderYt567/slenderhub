@@ -20,7 +20,7 @@ const EditProduct: React.FC = () => {
 
   const [inputCurrency, setInputCurrency] = useState<'USD' | 'BRL'>('USD');
   const [variants, setVariants] = useState<ProductVariant[]>([]);
-  const [newVariant, setNewVariant] = useState({ name: '', price: '' });
+  const [newVariant, setNewVariant] = useState({ name: '', price: '', image: '' });
 
   // Extract unique categories for suggestions
   const existingCategories = useMemo(() => {
@@ -88,10 +88,11 @@ const EditProduct: React.FC = () => {
     const variant: ProductVariant = {
       id: Date.now().toString() + Math.random().toString(),
       name: newVariant.name,
-      price: finalPriceUSD
+      price: finalPriceUSD,
+      image: newVariant.image || undefined
     };
     setVariants([...variants, variant]);
-    setNewVariant({ name: '', price: '' });
+    setNewVariant({ name: '', price: '', image: '' });
   };
 
   const removeVariant = (id: string) => {
@@ -192,7 +193,10 @@ const EditProduct: React.FC = () => {
               <div className="mb-4 space-y-2">
                 {variants.map(v => (
                   <div key={v.id} className="flex items-center justify-between rounded bg-slate-900 px-3 py-2 border border-slate-800">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
+                      {v.image && (
+                         <img src={v.image} alt={v.name} className="w-8 h-8 rounded bg-slate-950 object-cover" />
+                      )}
                       <span className="font-medium text-white">{v.name}</span>
                       <span className="text-sm text-blue-400">
                         {inputCurrency === 'BRL'
@@ -208,18 +212,25 @@ const EditProduct: React.FC = () => {
               </div>
             )}
 
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="text"
-                placeholder="Plan Name"
+                placeholder="Variant Name"
                 className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
                 value={newVariant.name}
                 onChange={(e) => setNewVariant({ ...newVariant, name: e.target.value })}
               />
               <input
+                type="text"
+                placeholder="Image URL (Optional)"
+                className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                value={newVariant.image}
+                onChange={(e) => setNewVariant({ ...newVariant, image: e.target.value })}
+              />
+              <input
                 type="number"
                 placeholder={`Price (${inputCurrency})`}
-                className="w-32 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                className="w-full sm:w-32 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
                 value={newVariant.price}
                 onChange={(e) => setNewVariant({ ...newVariant, price: e.target.value })}
               />
@@ -266,22 +277,18 @@ const EditProduct: React.FC = () => {
               <label className="mb-2 block text-sm font-medium text-gray-300">Category</label>
               <div className="relative">
                 <Tag className="absolute left-3 top-2.5 h-5 w-5 text-gray-500" />
-                <input
-                  list="category-list"
-                  type="text"
+                <select
                   required
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 py-2.5 pl-10 pr-4 text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-slate-700 bg-slate-950 py-2.5 pl-10 pr-4 text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 appearance-none"
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                />
-                <datalist id="category-list">
-                  {existingCategories.map((cat) => (
-                    <option key={cat} value={cat} />
+                >
+                  <option value="script">SlenderHub Scripts (Planos, UI, Auth)</option>
+                  <option value="item">Game Items (Gamepasses, Pets, etc)</option>
+                  {existingCategories.filter(c => c !== 'script' && c !== 'item').map(cat => (
+                      <option key={cat} value={cat}>{cat} (Legacy)</option>
                   ))}
-                  <option value="script" />
-                  <option value="item" />
-                  <option value="plans" />
-                </datalist>
+                </select>
               </div>
             </div>
           </div>
