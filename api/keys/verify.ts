@@ -3,17 +3,29 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://pypfcdczatmsnqjuggiq.supabase.co';
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_f6NUOpZVZwHxqe0Meivd-w_7zs3cj4b';
 
-const getRequestUrl = (request: Request) => {
+const getHeader = (request: any, name: string) => {
+    const headers = request?.headers;
+    if (!headers) return undefined;
+
+    if (typeof headers.get === 'function') {
+        return headers.get(name) || headers.get(name.toLowerCase()) || undefined;
+    }
+
+    const value = headers[name] ?? headers[name.toLowerCase()];
+    return Array.isArray(value) ? value[0] : value;
+};
+
+const getRequestUrl = (request: any) => {
     try {
         return new URL(request.url);
     } catch {
-        const host = request.headers.get('host') || 'localhost';
-        const protocol = request.headers.get('x-forwarded-proto') || 'https';
+        const host = getHeader(request, 'host') || 'localhost';
+        const protocol = getHeader(request, 'x-forwarded-proto') || 'https';
         return new URL(request.url, `${protocol}://${host}`);
     }
 };
 
-export default async function handler(request: Request) {
+export default async function handler(request: any) {
     if (!supabaseKey) {
         console.error('Critical verify error: missing API key');
         return new Response(JSON.stringify({ success: false, message: 'Server Config Error' }), {
