@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://pypfcdczatmsnqjuggiq.supabase.co';
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_f6NUOpZVZwHxqe0Meivd-w_7zs3cj4b';
+const RPC_TIMEOUT_MS = 12000;
 
 const getHeader = (request: any, name: string) => {
     const headers = request?.headers;
@@ -49,10 +50,16 @@ export default async function handler(request: any) {
     try {
         const supabase = createClient(supabaseUrl, supabaseKey);
 
-        const { data, error } = await supabase.rpc('verify_license_key', {
+        const rpcPromise = supabase.rpc('verify_license_key', {
             p_key_string: key,
             p_hwid: hwid
         });
+
+        const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error(`verify_license_key timed out after ${RPC_TIMEOUT_MS}ms`)), RPC_TIMEOUT_MS);
+        });
+
+        const { data, error } = await Promise.race([rpcPromise, timeoutPromise]);
 
         if (error) {
             return new Response(JSON.stringify({

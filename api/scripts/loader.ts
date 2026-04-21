@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://pypfcdczatmsnqjuggiq.supabase.co';
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_f6NUOpZVZwHxqe0Meivd-w_7zs3cj4b';
+const RPC_TIMEOUT_MS = 12000;
 
 const getHeader = (request: any, name: string) => {
     const headers = request?.headers;
@@ -52,11 +53,17 @@ export default async function handler(request: any) {
     try {
         const supabase = createClient(supabaseUrl, supabaseKey);
 
-        const { data, error } = await supabase.rpc('validate_and_get_script', {
+        const rpcPromise = supabase.rpc('validate_and_get_script', {
             p_key_string: key,
             p_hwid: hwid,
             p_ip_address: ipAddress
         });
+
+        const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error(`validate_and_get_script timed out after ${RPC_TIMEOUT_MS}ms`)), RPC_TIMEOUT_MS);
+        });
+
+        const { data, error } = await Promise.race([rpcPromise, timeoutPromise]);
 
         if (error) {
             return luaResponse(`warn("Database Error: ${error.message}");`);
