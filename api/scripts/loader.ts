@@ -3,6 +3,16 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://pypfcdczatmsnqjuggiq.supabase.co';
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_f6NUOpZVZwHxqe0Meivd-w_7zs3cj4b';
 
+const getRequestUrl = (request: Request) => {
+    try {
+        return new URL(request.url);
+    } catch {
+        const host = request.headers.get('host') || 'localhost';
+        const protocol = request.headers.get('x-forwarded-proto') || 'https';
+        return new URL(request.url, `${protocol}://${host}`);
+    }
+};
+
 const luaResponse = (script: string) =>
     new Response(script, {
         status: 200,
@@ -17,7 +27,7 @@ export default async function handler(request: Request) {
         return luaResponse('warn("Server Config Error: Missing API Key");');
     }
 
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = getRequestUrl(request);
     const key = searchParams.get('key');
     const hwid = searchParams.get('hwid');
 

@@ -1,28 +1,40 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://pypfcdczatmsnqjuggiq.supabase.co';
-// Using ANON Key allows this endpoint to work reliably since RPC handles security
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_f6NUOpZVZwHxqe0Meivd-w_7zs3cj4b';
+
+const getRequestUrl = (request: Request) => {
+    try {
+        return new URL(request.url);
+    } catch {
+        const host = request.headers.get('host') || 'localhost';
+        const protocol = request.headers.get('x-forwarded-proto') || 'https';
+        return new URL(request.url, `${protocol}://${host}`);
+    }
+};
 
 export default async function handler(request: Request) {
     if (!supabaseKey) {
-        console.error("ERRO CRITICO: Verificação falhou - Chave de API ausente");
-        return new Response(JSON.stringify({ success: false, message: 'Server Config Error' }), { status: 500 });
+        console.error('Critical verify error: missing API key');
+        return new Response(JSON.stringify({ success: false, message: 'Server Config Error' }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
 
-    const { searchParams } = new URL(request.url);
+    const requestUrl = getRequestUrl(request);
+    const { searchParams } = requestUrl;
     const key = searchParams.get('key');
     const hwid = searchParams.get('hwid') || 'untracked';
 
     if (!key) {
-        return new Response(JSON.stringify({ success: false, message: 'Key is required' }), { 
+        return new Response(JSON.stringify({ success: false, message: 'Key is required' }), {
             status: 400,
             headers: { 'Content-Type': 'application/json' }
         });
     }
 
     try {
-        console.log(`[Verify] Checking key: ${key} for HWID: ${hwid}`);
         const supabase = createClient(supabaseUrl, supabaseKey);
 
         const { data, error } = await supabase.rpc('verify_license_key', {
@@ -31,35 +43,36 @@ export default async function handler(request: Request) {
         });
 
         if (error) {
-            console.error("[Verify] RPC Error:", error);
-            return new Response(JSON.stringify({ 
-                success: false, 
+            return new Response(JSON.stringify({
+                success: false,
                 message: `Database Error: ${error.message}`,
-                details: error.hint
-            }), { 
+                details: error.hint || null
+            }), {
                 status: 500,
-                headers: { 'Content-Type': 'application/json' }
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-store'
+                }
             });
         }
 
-        console.log("[Verify] RPC Result:", data);
-
         return new Response(JSON.stringify(data), {
             status: data && data.success ? 200 : 403,
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'Cache-Control': 'no-store'
             }
         });
-
     } catch (err: any) {
-        console.error("[Verify] Catch Error:", err);
-        return new Response(JSON.stringify({ 
-            success: false, 
-            message: `Internal Server Error: ${err.message}` 
-        }), { 
+        return new Response(JSON.stringify({
+            success: false,
+            message: `Internal Server Error: ${err.message}`
+        }), {
             status: 500,
-            headers: { 'Content-Type': 'application/json' }
+            headers: {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-store'
+            }
         });
     }
 }
