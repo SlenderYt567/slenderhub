@@ -141,8 +141,7 @@ const ScriptManager: React.FC = () => {
   const copyLoaderSnippet = async (scriptId: string) => {
     const snippet = [
       '_G.SlenderKey = "YOUR_KEY_HERE"',
-      `_G.SlenderScriptId = "${scriptId}"`,
-      `loadstring(game:HttpGet("${loaderHost}/api/scripts/loader?key=" .. _G.SlenderKey .. "&hwid=" .. game:GetService("RbxAnalyticsService"):GetClientId()))()`,
+      `loadstring(game:HttpGet("${loaderHost}/api/scripts/loader?script_id=${scriptId}&key=" .. _G.SlenderKey .. "&hwid=" .. game:GetService("RbxAnalyticsService"):GetClientId()))()`,
     ].join('\n');
 
     await navigator.clipboard.writeText(snippet);

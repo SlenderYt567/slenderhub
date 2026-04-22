@@ -414,12 +414,10 @@ const DeveloperPanel: React.FC = () => {
                               )}
                             </button>
                           </div>
-                          {key.script_id && (
-                            <div className="mt-2 flex items-center space-x-1 text-xs text-indigo-400">
-                              <Code className="h-3 w-3" />
-                              <span>Linked to a script</span>
-                            </div>
-                          )}
+                          <div className={`mt-2 flex items-center space-x-1 text-xs ${key.script_id ? 'text-indigo-400' : 'text-amber-400'}`}>
+                            <Code className="h-3 w-3" />
+                            <span>{key.script_id ? 'Linked to a script' : 'Global key (no script linked)'}</span>
+                          </div>
                         </td>
                         <td className="px-6 py-4">
                           <span className="text-sm text-gray-300">{key.note || 'No note'}</span>

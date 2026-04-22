@@ -21,6 +21,7 @@ export default async function handler(req: any, res: any) {
 
     const key = req.query?.key;
     const hwid = req.query?.hwid;
+    const scriptId = req.query?.script_id || req.query?.scriptId;
 
     if (!key || !hwid) {
         return sendLua('warn("Authentication Error: Key and HWID are required.");');
@@ -59,17 +60,43 @@ export default async function handler(req: any, res: any) {
                 secondsLeft = Math.floor((new Date(data.expires_at).getTime() - Date.now()) / 1000);
             }
 
+            let scriptContent = data.script_content;
+            let scriptName = data.script_name || 'Protected Script';
+
+            if ((!scriptContent || !String(scriptContent).trim()) && scriptId) {
+                const { data: scriptRow, error: scriptError } = await supabase
+                    .from('protected_scripts')
+                    .select('name, script_content, is_active')
+                    .eq('id', scriptId)
+                    .single();
+
+                if (scriptError) {
+                    return sendLua(`warn("SlenderHub Gateway: Script_Not_Found");`);
+                }
+
+                if (scriptRow?.is_active === false) {
+                    return sendLua(`warn("SlenderHub Gateway: Script_Disabled");`);
+                }
+
+                scriptContent = scriptRow?.script_content;
+                scriptName = scriptRow?.name || scriptName;
+            }
+
             const scriptHeader = `
 -- [SlenderHub Protected Environment]
 getgenv().LRM_IsUserPremium = ${data.tier === 'premium' || data.tier === 'lifetime' ? 'true' : 'false'};
-getgenv().LRM_ScriptName = "${data.script_name || 'Protected Script'}";
+getgenv().LRM_ScriptName = "${scriptName}";
 getgenv().LRM_TotalExecutions = ${data.total_executions || 1};
 getgenv().LRM_SecondsLeft = ${secondsLeft};
 getgenv().LRM_UserNote = "${data.note || ''}";
 
 `;
 
-            return sendLua(scriptHeader + data.script_content);
+            if (!scriptContent || !String(scriptContent).trim()) {
+                return sendLua(scriptHeader + '-- Global Key active, but no script assigned');
+            }
+
+            return sendLua(scriptHeader + scriptContent);
         }
 
         const errorMessage = data?.error || 'Unknown Error';
