@@ -3,7 +3,7 @@ import { Check, Copy, ExternalLink, Info, Lock, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Documentation: React.FC = () => {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
   const baseUrl = useMemo(() => window.location.origin, []);
 
   const luaCode = useMemo(
@@ -28,10 +28,105 @@ end`,
     [baseUrl]
   );
 
-  const copyCode = async (value: string) => {
+  const externalApiExample = useMemo(
+    () => `-- SlenderHub External Key API (global keys)
+local HttpService = game:GetService("HttpService")
+local Analytics = game:GetService("RbxAnalyticsService")
+
+local KEY_FILE = "SlenderHubKey.json"
+local VERIFY_URL = "${baseUrl}/api/keys/verify"
+
+local function getHWID()
+    local ok, hwid = pcall(function()
+        return Analytics:GetClientId()
+    end)
+    return ok and hwid or "UNKNOWN_HWID"
+end
+
+local function saveKey(key)
+    if writefile then
+        writefile(KEY_FILE, HttpService:JSONEncode({ key = key }))
+    end
+end
+
+local function loadSavedKey()
+    if not isfile or not isfile(KEY_FILE) then
+        return nil
+    end
+
+    local ok, parsed = pcall(function()
+        return HttpService:JSONDecode(readfile(KEY_FILE))
+    end)
+
+    if ok and parsed and parsed.key then
+        return parsed.key
+    end
+
+    return nil
+end
+
+local function verifyKey(licenseKey)
+    local url = VERIFY_URL
+        .. "?key=" .. HttpService:UrlEncode(licenseKey)
+        .. "&hwid=" .. HttpService:UrlEncode(getHWID())
+
+    local response = HttpService:GetAsync(url)
+    local data = HttpService:JSONDecode(response)
+
+    if not data.success then
+        return false, data.message
+    end
+
+    return true, data
+end
+
+local function authenticateWithKey(licenseKey)
+    local ok, valid, payload = pcall(function()
+        return verifyKey(licenseKey)
+    end)
+
+    if not ok then
+        warn("SlenderHub verify request failed: " .. tostring(valid))
+        return false
+    end
+
+    if not valid then
+        warn("Invalid key: " .. tostring(payload))
+        return false
+    end
+
+    saveKey(licenseKey)
+
+    local tier = payload.tier or payload.type or "basic"
+    print("Authenticated with SlenderHub tier:", tier)
+
+    -- Call your own script init here
+    -- startMyScript()
+    return true
+end
+
+local rememberedKey = loadSavedKey()
+if rememberedKey then
+    if authenticateWithKey(rememberedKey) then
+        return
+    end
+end
+
+-- Replace this with your UI/input system
+local inputKey = "PASTE_USER_KEY_HERE"
+authenticateWithKey(inputKey)`,
+    [baseUrl]
+  );
+
+  const claimPageExample = useMemo(
+    () => `${baseUrl}/#/claim?owner=YOUR_USER_ID&duration=1&prefix=SLENDER&note=Free+claim`,
+    [baseUrl]
+  );
+
+  const copyCode = async (value: string, id: string) => {
     await navigator.clipboard.writeText(value);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopied(id);
+    setTimeout(() => setCopied(null), 2000);
   };
 
   return (
@@ -97,11 +192,11 @@ end`,
               <div className="flex items-center justify-between border-b border-slate-800 bg-slate-800/50 px-4 py-2">
                 <span className="text-xs uppercase text-gray-500">Luau Loader</span>
                 <button
-                  onClick={() => void copyCode(luaCode)}
+                  onClick={() => void copyCode(luaCode, 'loader')}
                   className="flex items-center space-x-2 rounded-lg bg-slate-700 px-3 py-1 text-xs transition-colors hover:bg-slate-600"
                 >
-                  {copied ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
-                  <span>{copied ? 'Copied' : 'Copy Code'}</span>
+                  {copied === 'loader' ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+                  <span>{copied === 'loader' ? 'Copied' : 'Copy Code'}</span>
                 </button>
               </div>
               <div className="overflow-x-auto p-6">
@@ -131,7 +226,67 @@ end`,
 
           <section>
             <div className="mb-4 flex items-center space-x-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 font-bold">5</div>
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 font-bold">5</div>
+              <h2 className="text-xl font-bold">Integrate global keys into your own script</h2>
+            </div>
+            <p className="ml-11 mb-4 text-gray-400">
+              Use this mode when you already have your own key UI inside the script and only want SlenderHub to validate
+              global keys. The user gets a free or premium key from your site, pastes it into your script once, and the
+              script can remember it locally for future launches.
+            </p>
+
+            <div className="ml-11 mb-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-200">
+              This mode uses <code className="font-mono text-emerald-300">{baseUrl}/api/keys/verify</code> only. It does
+              not require the protected loader route.
+            </div>
+
+            <div className="ml-11 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+              <div className="flex items-center justify-between border-b border-slate-800 bg-slate-800/50 px-4 py-2">
+                <span className="text-xs uppercase text-gray-500">External Key API Example</span>
+                <button
+                  onClick={() => void copyCode(externalApiExample, 'external-api')}
+                  className="flex items-center space-x-2 rounded-lg bg-slate-700 px-3 py-1 text-xs transition-colors hover:bg-slate-600"
+                >
+                  {copied === 'external-api' ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+                  <span>{copied === 'external-api' ? 'Copied' : 'Copy Code'}</span>
+                </button>
+              </div>
+              <div className="overflow-x-auto p-6">
+                <pre className="text-sm leading-relaxed text-emerald-300">{externalApiExample}</pre>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <div className="mb-4 flex items-center space-x-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 font-bold">6</div>
+              <h2 className="text-xl font-bold">Give users a page to get free or premium keys</h2>
+            </div>
+            <p className="ml-11 mb-4 text-gray-400">
+              Pair the external API mode with the new claim page. Users open your public page, complete the gateway, and
+              receive a fresh global key to paste into your script UI.
+            </p>
+
+            <div className="ml-11 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+              <div className="flex items-center justify-between border-b border-slate-800 bg-slate-800/50 px-4 py-2">
+                <span className="text-xs uppercase text-gray-500">Claim Page Example</span>
+                <button
+                  onClick={() => void copyCode(claimPageExample, 'claim')}
+                  className="flex items-center space-x-2 rounded-lg bg-slate-700 px-3 py-1 text-xs transition-colors hover:bg-slate-600"
+                >
+                  {copied === 'claim' ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+                  <span>{copied === 'claim' ? 'Copied' : 'Copy URL'}</span>
+                </button>
+              </div>
+              <div className="overflow-x-auto p-6">
+                <pre className="text-sm leading-relaxed text-blue-300">{claimPageExample}</pre>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <div className="mb-4 flex items-center space-x-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 font-bold">7</div>
               <h2 className="text-xl font-bold">Understand HWID lock</h2>
             </div>
             <div className="ml-11 grid grid-cols-1 gap-4 md:grid-cols-2">

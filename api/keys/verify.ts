@@ -48,10 +48,18 @@ export default async function handler(req: any, res: any) {
             });
         }
 
+        const tier = data?.data?.tier || data?.tier || null;
+        const expires = data?.data?.expires || data?.expires_at || null;
+
         return res
             .status(data && data.success ? 200 : 403)
             .setHeader('Cache-Control', 'no-store')
-            .json(data);
+            .json({
+                ...data,
+                type: tier,
+                tier,
+                expires_at: expires,
+            });
     } catch (err: any) {
         return res.status(500).json({
             success: false,
