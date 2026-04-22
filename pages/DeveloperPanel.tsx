@@ -64,6 +64,14 @@ const DeveloperPanel: React.FC = () => {
     youtube_url: '',
   });
   const [devTier, setDevTier] = useState<string>('none');
+  const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
+  const [claimLinkConfig, setClaimLinkConfig] = useState({
+    prefix: 'SLENDER',
+    durationDays: 1,
+    note: 'Gateway claim',
+    script_id: '',
+  });
+  const [copiedClaimLink, setCopiedClaimLink] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -248,6 +256,22 @@ const DeveloperPanel: React.FC = () => {
   };
 
   const appBaseUrl = `${window.location.origin}${window.location.pathname}`;
+  const claimLink = user
+    ? `${window.location.origin}/#/claim?${new URLSearchParams({
+        owner: user.id,
+        duration: String(claimLinkConfig.durationDays),
+        prefix: claimLinkConfig.prefix || 'SLENDER',
+        note: claimLinkConfig.note || 'Gateway claim',
+        ...(claimLinkConfig.script_id ? { script: claimLinkConfig.script_id } : {}),
+      }).toString()}`
+    : '';
+
+  const handleCopyClaimLink = async () => {
+    if (!claimLink) return;
+    await navigator.clipboard.writeText(claimLink);
+    setCopiedClaimLink(true);
+    setTimeout(() => setCopiedClaimLink(false), 2000);
+  };
 
   return (
     <div className="min-h-screen bg-[#020617] px-4 pb-12 pt-24 text-white sm:px-6 lg:px-8">
@@ -282,6 +306,13 @@ const DeveloperPanel: React.FC = () => {
             >
               <ExternalLink className="h-4 w-4" />
               <span>Gateway</span>
+            </button>
+            <button
+              onClick={() => setIsClaimModalOpen(true)}
+              className="flex items-center space-x-2 rounded-lg border border-emerald-500/30 bg-emerald-600/15 px-4 py-2 font-semibold text-emerald-400 transition-all hover:bg-emerald-600 hover:text-white"
+            >
+              <Key className="h-4 w-4" />
+              <span>Claim Link</span>
             </button>
             <Link
               to="/documentation"
@@ -567,6 +598,106 @@ const DeveloperPanel: React.FC = () => {
                   {generating ? 'Generating...' : 'Confirm'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isClaimModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-3xl border border-slate-800 bg-[#0f172a] p-8 shadow-2xl">
+            <div className="mb-6 flex items-center gap-3">
+              <div className="rounded-xl bg-emerald-500/10 p-3 text-emerald-400">
+                <Key className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold">Get Key Page</h2>
+                <p className="text-sm text-gray-400">
+                  Create a public claim page that generates a fresh key only after the user completes the gateway.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm text-gray-400">Prefix</label>
+                <input
+                  type="text"
+                  value={claimLinkConfig.prefix}
+                  onChange={(e) => setClaimLinkConfig({ ...claimLinkConfig, prefix: e.target.value.toUpperCase() })}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 outline-none focus:ring-2 focus:ring-emerald-500"
+                  placeholder="SLENDER"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm text-gray-400">Duration (Days)</label>
+                <select
+                  value={claimLinkConfig.durationDays}
+                  onChange={(e) => setClaimLinkConfig({ ...claimLinkConfig, durationDays: parseInt(e.target.value, 10) })}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  <option value={1}>1 Day</option>
+                  <option value={7}>7 Days</option>
+                  <option value={30}>30 Days</option>
+                  <option value={365}>365 Days</option>
+                  <option value={0}>Lifetime</option>
+                </select>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="mb-1 block text-sm text-gray-400">Claim Type</label>
+                <select
+                  value={claimLinkConfig.script_id}
+                  onChange={(e) => setClaimLinkConfig({ ...claimLinkConfig, script_id: e.target.value })}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  <option value="">Global Key Claim</option>
+                  {scripts.map((script) => (
+                    <option key={script.id} value={script.id}>
+                      {script.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="mb-1 block text-sm text-gray-400">Internal Note</label>
+                <input
+                  type="text"
+                  value={claimLinkConfig.note}
+                  onChange={(e) => setClaimLinkConfig({ ...claimLinkConfig, note: e.target.value })}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 outline-none focus:ring-2 focus:ring-emerald-500"
+                  placeholder="Gateway claim"
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+              <h3 className="mb-2 font-bold text-emerald-300">Public Get Key URL</h3>
+              <code className="block break-all rounded-xl border border-slate-800 bg-slate-950 p-3 text-sm text-emerald-400 select-all">
+                {claimLink}
+              </code>
+              <p className="mt-2 text-xs leading-relaxed text-gray-400">
+                Share this page with users. After the gateway, the site creates a new key automatically with the selected
+                duration and script scope. This replaces the old manual flow where you had to pre-generate large batches.
+              </p>
+            </div>
+
+            <div className="mt-6 flex gap-4">
+              <button
+                onClick={() => setIsClaimModalOpen(false)}
+                className="flex-1 rounded-xl bg-slate-800 px-4 py-2 transition-colors hover:bg-slate-700"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => void handleCopyClaimLink()}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 font-bold transition-colors hover:bg-emerald-500"
+              >
+                {copiedClaimLink ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                {copiedClaimLink ? 'Copied' : 'Copy Claim Link'}
+              </button>
             </div>
           </div>
         </div>
