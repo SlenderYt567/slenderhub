@@ -17,7 +17,6 @@ const Admin: React.FC = () => {
     stock: '',
   });
 
-  const [inputCurrency, setInputCurrency] = useState<'USD' | 'BRL'>('USD');
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [newVariant, setNewVariant] = useState({ name: '', price: '', image: '' });
 
@@ -47,32 +46,14 @@ const Admin: React.FC = () => {
     }
   };
 
-  const toggleInputCurrency = () => {
-    // Convert current input values when switching currency
-    const newCurrency = inputCurrency === 'USD' ? 'BRL' : 'USD';
-    const rate = inputCurrency === 'USD' ? exchangeRate : (1 / exchangeRate);
 
-    // Update Base Price Input
-    if (formData.price) {
-      const val = parseFloat(formData.price);
-      setFormData(prev => ({ ...prev, price: (val * rate).toFixed(2) }));
-    }
-
-    // Update New Variant Input
-    if (newVariant.price) {
-      const val = parseFloat(newVariant.price);
-      setNewVariant(prev => ({ ...prev, price: (val * rate).toFixed(2) }));
-    }
-
-    setInputCurrency(newCurrency);
-  };
 
   const handleAddVariant = () => {
     if (!newVariant.name || !newVariant.price) return;
 
     // Always store as USD internally
     const rawPrice = parseFloat(newVariant.price);
-    const finalPriceUSD = inputCurrency === 'BRL' ? rawPrice / exchangeRate : rawPrice;
+    const finalPriceUSD = rawPrice;
 
     const variant: ProductVariant = {
       id: Date.now().toString() + Math.random().toString(),
@@ -93,7 +74,7 @@ const Admin: React.FC = () => {
 
     // Determine final base price in USD
     const rawFormPrice = parseFloat(formData.price);
-    const finalBasePriceUSD = inputCurrency === 'BRL' ? rawFormPrice / exchangeRate : rawFormPrice;
+    const finalBasePriceUSD = rawFormPrice;
 
     // If variants exist, calculate min price from variants (variants are already stored as USD in state)
     // If no variants, use the form price converted to USD
@@ -137,14 +118,7 @@ const Admin: React.FC = () => {
             <p className="text-sm text-gray-400">Create a new listing or plan for Slender Hub</p>
           </div>
 
-          <button
-            type="button"
-            onClick={toggleInputCurrency}
-            className="flex items-center gap-2 rounded-lg bg-slate-800 px-3 py-2 text-sm font-bold text-blue-400 hover:bg-slate-700 transition border border-slate-700"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Input: {inputCurrency}
-          </button>
+
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -182,7 +156,7 @@ const Admin: React.FC = () => {
             <div className="flex items-center justify-between mb-4">
               <label className="text-sm font-bold text-white">Plans / Variants (Optional)</label>
               <span className="text-xs text-gray-500">
-                Add pricing options in <span className="text-blue-400 font-bold">{inputCurrency}</span>
+                Add pricing options in <span className="text-blue-400 font-bold">USD</span>
               </span>
             </div>
 
@@ -197,9 +171,7 @@ const Admin: React.FC = () => {
                       <span className="font-medium text-white">{v.name}</span>
                       <span className="text-sm text-blue-400">
                         {/* Display variant price converted to current input currency for consistency view */}
-                        {inputCurrency === 'BRL'
-                          ? `R$ ${(v.price * exchangeRate).toFixed(2)}`
-                          : `$${v.price.toFixed(2)}`}
+                        {`$${v.price.toFixed(2)}`}
                       </span>
                     </div>
                     <button type="button" onClick={() => removeVariant(v.id)} className="text-red-500 hover:text-white">
@@ -227,7 +199,7 @@ const Admin: React.FC = () => {
               />
               <input
                 type="number"
-                placeholder={`Price (${inputCurrency})`}
+                placeholder="Price (USD)"
                 className="w-full sm:w-32 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
                 value={newVariant.price}
                 onChange={(e) => setNewVariant({ ...newVariant, price: e.target.value })}
@@ -247,7 +219,7 @@ const Admin: React.FC = () => {
             {variants.length === 0 && (
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-300">
-                  Price ({inputCurrency})
+                  Price (USD)
                 </label>
                 <div className="relative">
                   <DollarSign className="absolute left-3 top-2.5 h-5 w-5 text-gray-500" />
@@ -261,15 +233,7 @@ const Admin: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                   />
                 </div>
-                {formData.price && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    Converts to: <span className="text-blue-400 font-bold">
-                      {inputCurrency === 'BRL'
-                        ? `$${(parseFloat(formData.price) / exchangeRate).toFixed(2)} USD`
-                        : `R$ ${(parseFloat(formData.price) * exchangeRate).toFixed(2)} BRL`}
-                    </span>
-                  </p>
-                )}
+
               </div>
             )}
 

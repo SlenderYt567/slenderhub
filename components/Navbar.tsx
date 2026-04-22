@@ -4,7 +4,7 @@ import { ShoppingCart, ShieldCheck, LogIn, LogOut, PlusCircle, Globe, Mail, Layo
 import { useStore } from '../store';
 
 const Navbar: React.FC = () => {
-  const { cart, isAuthenticated, isAdmin, logout, currency, setCurrency } = useStore();
+  const { cart, isAuthenticated, isAdmin, logout } = useStore();
   const location = useLocation();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -18,9 +18,7 @@ const Navbar: React.FC = () => {
     setIsMenuOpen(false);
   };
 
-  const toggleCurrency = () => {
-    setCurrency(currency === 'USD' ? 'BRL' : 'USD');
-  };
+
 
   return (
     <nav className="sticky top-0 z-50 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md">
@@ -69,15 +67,6 @@ const Navbar: React.FC = () => {
             className="md:hidden flex items-center justify-center rounded-lg bg-slate-800 p-2 text-gray-400 hover:bg-slate-700 hover:text-white transition"
           >
             {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
-
-          <button
-            onClick={toggleCurrency}
-            className="flex items-center gap-1 rounded-full bg-slate-800 px-3 py-1.5 text-xs font-bold text-gray-300 hover:bg-slate-700 hover:text-white transition"
-            title="Switch Currency"
-          >
-            <Globe className="h-3 w-3" />
-            {currency}
           </button>
 
           {isAuthenticated ? (

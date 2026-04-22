@@ -206,18 +206,10 @@ const Checkout: React.FC = () => {
                                     <span className="text-white">Total</span>
                                     <span className="text-blue-400">{formatPrice(totalCartValue)}</span>
                                 </div>
-                                {currency === 'USD' && (
-                                    <div className="flex justify-between text-xs text-gray-500">
-                                        <span>Approx. BRL</span>
-                                        <span>R$ {(totalCartValue * exchangeRate).toFixed(2)}</span>
-                                    </div>
-                                )}
-                                {currency === 'BRL' && (
-                                    <div className="flex justify-between text-xs text-gray-500">
-                                        <span>Value in USD</span>
-                                        <span>${totalCartValue.toFixed(2)}</span>
-                                    </div>
-                                )}
+                                <div className="flex justify-between text-xs text-gray-500">
+                                    <span>Currency</span>
+                                    <span>USD</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -237,7 +229,7 @@ const Checkout: React.FC = () => {
                                         <div className="h-8 w-12 rounded bg-white/10 flex items-center justify-center text-[10px] font-bold">PIX</div>
                                         <div>
                                             <span className="block font-bold text-white">Pay with Pix (Brazil)</span>
-                                            <span className="text-xs text-gray-400">Total: R$ {(totalCartValue * exchangeRate).toFixed(2)}</span>
+                                            <span className="text-xs text-gray-400">Converted at checkout</span>
                                         </div>
                                     </div>
                                     <div className={`h-4 w-4 rounded-full border-[3px] ${paymentMethod === 'pix' ? 'border-blue-500' : 'border-slate-600'}`}></div>
@@ -411,10 +403,6 @@ const Checkout: React.FC = () => {
                                                 <div className="flex justify-between">
                                                     <span>Total</span>
                                                     <span className="text-blue-400">${totalCartValue.toFixed(2)} USD</span>
-                                                </div>
-                                                <div className="flex justify-between text-xs text-gray-500">
-                                                    <span>BRL Equivalent</span>
-                                                    <span>R$ {(totalCartValue * exchangeRate).toFixed(2)}</span>
                                                 </div>
                                             </div>
                                         </div>

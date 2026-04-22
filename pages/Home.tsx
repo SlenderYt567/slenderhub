@@ -86,7 +86,7 @@ const Home: React.FC = () => {
                  <Star className="h-3.5 w-3.5 fill-yellow-500 text-yellow-500" />
                  <Star className="h-3.5 w-3.5 fill-yellow-500 text-yellow-500" />
                </span>
-               <span className="text-gray-400">Mais de <strong className="text-white font-extrabold text-blue-400">10.000</strong> vendas realizadas</span>
+               <span className="text-gray-400">More than <strong className="text-white font-extrabold text-blue-400">10,000</strong> sales completed</span>
              </div>
           </div>
         </div>
