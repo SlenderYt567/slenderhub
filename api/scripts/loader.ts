@@ -73,7 +73,14 @@ getgenv().LRM_UserNote = "${data.note || ''}";
         }
 
         const errorMessage = data?.error || 'Unknown Error';
-        return sendLua(`warn("SlenderHub Gateway: ${errorMessage}"); LocalPlayer:Kick("SlenderHub: ${errorMessage}")`);
+        return sendLua(`
+warn("SlenderHub Gateway: ${errorMessage}")
+local Players = game:GetService("Players")
+local player = Players and Players.LocalPlayer
+if player then
+    player:Kick("SlenderHub: ${errorMessage}")
+end
+`);
     } catch (err: any) {
         return sendLua(`warn("Internal Server Error: ${err.message}");`);
     }
