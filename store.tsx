@@ -28,7 +28,9 @@ interface StoreContextType {
   closeChat: (chatId: string) => Promise<void>;
   verifyPayment: (chatId: string) => Promise<void>;
   // Currency
-  currency: 'USD';
+  currency: Currency;
+  setCurrency: (currency: Currency) => void;
+  exchangeRate: number;
   formatPrice: (priceInUsd: number) => string;
   // Global Loading
   loading: boolean;
@@ -42,10 +44,17 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Currency State
+  const [currency, setCurrency] = useState<Currency>('USD');
+  const exchangeRate = 6.0; // Fixed rate: 1 USD = 6 BRL
+
   // Admin Check
   const isAdmin = user?.email === 'slenderyt9@gmail.com';
 
   const formatPrice = (priceInUsd: number) => {
+    if (currency === 'BRL') {
+      return `R$ ${(priceInUsd * exchangeRate).toFixed(2)}`;
+    }
     return `$${priceInUsd.toFixed(2)}`;
   };
 
@@ -444,7 +453,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         sendMessage,
         closeChat,
         verifyPayment,
-        currency: 'USD',
+        currency,
+        setCurrency,
+        exchangeRate,
         formatPrice,
         loading
       }}
