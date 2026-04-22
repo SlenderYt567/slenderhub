@@ -1,38 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Zap, Key, Shield, Check, ArrowRight, Star, Crown, Sparkles } from 'lucide-react';
+import { Zap, Shield, Check, ArrowRight, Star, Crown, Sparkles } from 'lucide-react';
 import { useStore } from '../store';
 
 const plans = [
-  {
-    id: 'starter',
-    name: 'Starter',
-    subtitle: 'Try it for free',
-    icon: Key,
-    iconColor: 'text-gray-400',
-    iconBg: 'bg-gray-500/10',
-    borderAccent: 'border-slate-700',
-    hoverBorder: 'hover:border-slate-500',
-    priceUSD: 0,
-    priceBRL: 0,
-    keyLimit: 5,
-    maxDuration: '1 Dia',
-    badge: null,
-    features: [
-      '5 keys total',
-      'Max duration 1 day',
-      'Basic gateway',
-      'Support via Discord',
-    ],
-    disabledFeatures: [
-      'Dynamic Linkvertise',
-      'Discord + YouTube gateway',
-      'Priority support',
-    ],
-    cta: 'Get Started Free',
-    ctaStyle: 'bg-slate-800 hover:bg-slate-700 text-white',
-    popular: false,
-  },
   {
     id: 'basic',
     name: 'Basic',
@@ -42,10 +13,9 @@ const plans = [
     iconBg: 'bg-blue-500/10',
     borderAccent: 'border-slate-700',
     hoverBorder: 'hover:border-blue-500/50',
-    priceUSD: 5.9,
-    priceBRL: 35,
+    priceUSD: 5.99,
     keyLimit: 50,
-    maxDuration: '30 Dias',
+    maxDuration: '30 Days',
     badge: null,
     features: [
       '50 keys total',
@@ -70,11 +40,10 @@ const plans = [
     iconBg: 'bg-indigo-500/10',
     borderAccent: 'border-indigo-500/40',
     hoverBorder: 'hover:border-indigo-400/60',
-    priceUSD: 14.9,
-    priceBRL: 90,
+    priceUSD: 14.99,
     keyLimit: 500,
     maxDuration: 'Lifetime',
-    badge: '🔥 Mais Popular',
+    badge: '🔥 Most Popular',
     features: [
       '500 keys total',
       'Lifetime duration',
@@ -97,8 +66,7 @@ const plans = [
     iconBg: 'bg-amber-500/10',
     borderAccent: 'border-amber-500/30',
     hoverBorder: 'hover:border-amber-400/50',
-    priceUSD: 29.9,
-    priceBRL: 180,
+    priceUSD: 29.99,
     keyLimit: null,
     maxDuration: 'Lifetime',
     badge: '👑 Elite',
@@ -118,18 +86,10 @@ const plans = [
 ];
 
 const Pricing: React.FC = () => {
-  const { isAuthenticated, addToCart, clearCart } = useStore();
+  const { addToCart, clearCart } = useStore();
   const navigate = useNavigate();
-  const [billing] = useState<'brl' | 'usd'>('brl');
 
   const handleBuy = (plan: typeof plans[0]) => {
-    if (plan.priceUSD === 0) {
-      if (!isAuthenticated) navigate('/login');
-      else navigate('/developer-panel');
-      return;
-    }
-
-    // Always add USD price to cart — the checkout/store handles conversion to BRL display
     clearCart();
     addToCart({
       id: `plan-${plan.id}`,
@@ -149,7 +109,6 @@ const Pricing: React.FC = () => {
     <div className="min-h-screen bg-[#020617] text-white">
       {/* Hero Section */}
       <div className="relative overflow-hidden pt-24 pb-16 px-4 text-center">
-        {/* Background glow */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-blue-600/10 rounded-full blur-[120px]" />
           <div className="absolute top-1/3 left-1/4 w-[300px] h-[200px] bg-indigo-600/8 rounded-full blur-[80px]" />
@@ -175,20 +134,17 @@ const Pricing: React.FC = () => {
       </div>
 
       {/* Plans Grid */}
-      <div className="max-w-7xl mx-auto px-4 pb-24">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-start">
+      <div className="max-w-5xl mx-auto px-4 pb-24">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
           {plans.map((plan) => {
             const Icon = plan.icon;
-            const price = billing === 'brl' ? plan.priceBRL : plan.priceUSD;
-            const priceCurrency = billing === 'brl' ? 'BRL' : 'USD';
-            const pricePrefix = billing === 'brl' ? 'R$' : '$';
 
             return (
               <div
                 key={plan.id}
                 className={`group relative rounded-3xl border ${plan.borderAccent} ${plan.hoverBorder} bg-slate-900/40 backdrop-blur-xl transition-all duration-300 overflow-hidden ${plan.popular ? 'ring-1 ring-indigo-500/30 shadow-xl shadow-indigo-500/10' : ''}`}
               >
-                {/* Popular badge */}
+                {/* Badge */}
                 {plan.badge && (
                   <div className="absolute top-4 right-4">
                     <span className="rounded-full bg-indigo-500/10 px-3 py-1 text-xs font-bold text-indigo-300 ring-1 ring-indigo-500/20">
@@ -208,17 +164,13 @@ const Pricing: React.FC = () => {
 
                   {/* Price */}
                   <div className="mb-6">
-                    {price === 0 ? (
-                      <div className="text-4xl font-black text-white">Grátis</div>
-                    ) : (
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-sm text-gray-400">{pricePrefix}</span>
-                        <span className="text-4xl font-black text-white">
-                          {price.toFixed(2).replace('.', ',')}
-                        </span>
-                        <span className="text-xs text-gray-500 ml-1">{priceCurrency}</span>
-                      </div>
-                    )}
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-sm text-gray-400">$</span>
+                      <span className="text-4xl font-black text-white">
+                        {plan.priceUSD.toFixed(2)}
+                      </span>
+                      <span className="text-xs text-gray-500 ml-1">USD</span>
+                    </div>
                     <p className="text-xs text-gray-500 mt-1">one-time payment</p>
                   </div>
 
@@ -231,7 +183,7 @@ const Pricing: React.FC = () => {
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-sm rounded-xl bg-slate-900 px-3 py-2">
-                      <span className="text-gray-400">Max Duration</span>
+                      <span className="text-gray-400">Duration</span>
                       <span className="font-bold text-white">{plan.maxDuration}</span>
                     </div>
                   </div>
@@ -271,7 +223,7 @@ const Pricing: React.FC = () => {
           <Shield className="w-8 h-8 text-blue-400 mx-auto mb-3" />
           <h3 className="text-lg font-bold mb-2">How does activation work?</h3>
           <p className="text-sm text-gray-400 leading-relaxed max-w-xl mx-auto">
-            After payment, join the SlenderHub Discord and send your proof. Your plan is manually activated within <strong className="text-white">24 hours</strong>. PIX payments are the fastest!
+            After payment, join the SlenderHub Discord and send your proof. Your plan is manually activated within <strong className="text-white">24 hours</strong>.
           </p>
           <div className="flex justify-center gap-4 mt-4">
             <a
@@ -291,14 +243,10 @@ const Pricing: React.FC = () => {
           </div>
         </div>
 
-        {/* FAQ minimal */}
+        {/* FAQ */}
         <div className="mt-10 max-w-2xl mx-auto space-y-4">
           <h2 className="text-center text-2xl font-black mb-6">Frequently Asked Questions</h2>
           {[
-            {
-              q: 'Is the Starter plan really free?',
-              a: 'Yes! When you create your account, you already have access to the Starter plan with 5 keys of up to 1 day validity to test the system.'
-            },
             {
               q: 'Can I upgrade my plan later?',
               a: 'Yes! Contact us on Discord and the upgrade process is done by paying the difference between plans.'
@@ -306,6 +254,10 @@ const Pricing: React.FC = () => {
             {
               q: 'Is the payment recurring?',
               a: 'No. All plans are one-time payments. Once purchased, it is yours forever — no monthly fees.'
+            },
+            {
+              q: 'What currency are prices in?',
+              a: 'All prices are in USD (US Dollars). Payment can be made via PIX or other supported methods.'
             },
           ].map((item) => (
             <div key={item.q} className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
