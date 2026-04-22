@@ -24,7 +24,7 @@ const compressImage = (base64: string, maxSize = 800, quality = 0.7): Promise<st
     });
 };
 
-const paypalQrCodeImage = 'https://glamorous-red-nsffxj80a2.edgeone.app/qr%20paypal.png';
+const paypalQrCodeImage = '/paypal-qr.png';
 
 const Checkout: React.FC = () => {
     const { cart, totalCartValue, clearCart, createChat, isAuthenticated, user, formatPrice, exchangeRate, currency } = useStore();
