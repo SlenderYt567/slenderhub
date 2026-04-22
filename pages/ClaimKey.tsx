@@ -33,6 +33,7 @@ const ClaimKey: React.FC = () => {
   const scriptId = searchParams.get('script') || '';
   const prefix = searchParams.get('prefix') || 'SLENDER';
   const note = searchParams.get('note') || 'Gateway claim';
+  const label = searchParams.get('label') || 'Custom Key';
   const durationDays = Number(searchParams.get('duration') || '1');
   const isCompleted = searchParams.get('step') === 'completed';
 
@@ -208,6 +209,9 @@ const ClaimKey: React.FC = () => {
           <h1 className="mb-2 text-2xl font-black">
             GET A NEW <span className="text-blue-500">KEY</span>
           </h1>
+          <div className="mb-3 inline-flex rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-300">
+            {label}
+          </div>
           <p className="text-sm text-gray-400">
             {scriptId ? `Generate a fresh key for ${scriptName}.` : 'Generate a fresh global key for compatible scripts.'}
           </p>

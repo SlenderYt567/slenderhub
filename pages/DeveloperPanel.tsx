@@ -38,6 +38,23 @@ type GatewayConfig = {
   youtube_url?: string | null;
 };
 
+type KeyPlanPreset = {
+  id: string;
+  label: string;
+  durationDays: number;
+  note: string;
+  prefix?: string;
+};
+
+const KEY_PLAN_PRESETS: KeyPlanPreset[] = [
+  { id: 'free-1d', label: 'Free - 1 Day', durationDays: 1, note: 'Free 1 Day Key' },
+  { id: 'free-7d', label: 'Free - 7 Days', durationDays: 7, note: 'Free 7 Days Key' },
+  { id: 'weekly', label: 'Premium - Weekly', durationDays: 7, note: 'Weekly Premium Key' },
+  { id: 'monthly', label: 'Premium - Monthly', durationDays: 30, note: 'Monthly Premium Key' },
+  { id: 'yearly', label: 'Premium - Yearly', durationDays: 365, note: 'Yearly Premium Key' },
+  { id: 'lifetime', label: 'Premium - Lifetime', durationDays: 0, note: 'Lifetime Premium Key' },
+];
+
 const DeveloperPanel: React.FC = () => {
   const { user } = useStore();
   const [keys, setKeys] = useState<LicenseKeyRecord[]>([]);
@@ -48,6 +65,7 @@ const DeveloperPanel: React.FC = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newKeyConfig, setNewKeyConfig] = useState({
+    planPreset: 'monthly',
     prefix: 'SLENDER',
     durationDays: 30,
     note: '',
@@ -66,6 +84,7 @@ const DeveloperPanel: React.FC = () => {
   const [devTier, setDevTier] = useState<string>('none');
   const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
   const [claimLinkConfig, setClaimLinkConfig] = useState({
+    planPreset: 'free-1d',
     prefix: 'SLENDER',
     durationDays: 1,
     note: 'Gateway claim',
@@ -281,9 +300,34 @@ const DeveloperPanel: React.FC = () => {
         duration: String(claimLinkConfig.durationDays),
         prefix: claimLinkConfig.prefix || 'SLENDER',
         note: claimLinkConfig.note || 'Gateway claim',
+        label: KEY_PLAN_PRESETS.find((preset) => preset.id === claimLinkConfig.planPreset)?.label || 'Custom Key',
         ...(claimLinkConfig.script_id ? { script: claimLinkConfig.script_id } : {}),
       }).toString()}`
     : '';
+
+  const applyKeyPlanPreset = (presetId: string, target: 'manual' | 'claim') => {
+    const preset = KEY_PLAN_PRESETS.find((item) => item.id === presetId);
+    if (!preset) return;
+
+    if (target === 'manual') {
+      setNewKeyConfig((current) => ({
+        ...current,
+        planPreset: preset.id,
+        durationDays: preset.durationDays,
+        note: preset.note,
+        prefix: preset.prefix || current.prefix || 'SLENDER',
+      }));
+      return;
+    }
+
+    setClaimLinkConfig((current) => ({
+      ...current,
+      planPreset: preset.id,
+      durationDays: preset.durationDays,
+      note: preset.note,
+      prefix: preset.prefix || current.prefix || 'SLENDER',
+    }));
+  };
 
   const handleCopyClaimLink = async () => {
     if (!claimLink) return;
@@ -534,6 +578,21 @@ const DeveloperPanel: React.FC = () => {
 
             <div className="space-y-4">
               <div>
+                <label className="mb-1 block text-sm text-gray-400">Plan Preset</label>
+                <select
+                  value={newKeyConfig.planPreset}
+                  onChange={(e) => applyKeyPlanPreset(e.target.value, 'manual')}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {KEY_PLAN_PRESETS.map((preset) => (
+                    <option key={preset.id} value={preset.id}>
+                      {preset.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
                 <label className="mb-1 block text-sm text-gray-400">Key Prefix</label>
                 <input
                   type="text"
@@ -645,6 +704,21 @@ const DeveloperPanel: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="md:col-span-2">
+                <label className="mb-1 block text-sm text-gray-400">Plan Preset</label>
+                <select
+                  value={claimLinkConfig.planPreset}
+                  onChange={(e) => applyKeyPlanPreset(e.target.value, 'claim')}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  {KEY_PLAN_PRESETS.map((preset) => (
+                    <option key={preset.id} value={preset.id}>
+                      {preset.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div>
                 <label className="mb-1 block text-sm text-gray-400">Prefix</label>
                 <input
@@ -707,6 +781,9 @@ const DeveloperPanel: React.FC = () => {
               <p className="mt-2 text-xs leading-relaxed text-gray-400">
                 Share this page with users. After the gateway, the site creates a new key automatically with the selected
                 duration and script scope. This replaces the old manual flow where you had to pre-generate large batches.
+              </p>
+              <p className="mt-2 text-xs leading-relaxed text-emerald-300">
+                Current plan: {KEY_PLAN_PRESETS.find((preset) => preset.id === claimLinkConfig.planPreset)?.label || 'Custom Key'}
               </p>
             </div>
 
