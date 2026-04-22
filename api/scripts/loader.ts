@@ -4,51 +4,29 @@ const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL ||
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_f6NUOpZVZwHxqe0Meivd-w_7zs3cj4b';
 const RPC_TIMEOUT_MS = 12000;
 
-const getHeader = (request: any, name: string) => {
-    const headers = request?.headers;
-    if (!headers) return undefined;
+export default async function handler(req: any, res: any) {
+    const sendLua = (body: string) => {
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        return res.status(200).send(body);
+    };
 
-    if (typeof headers.get === 'function') {
-        return headers.get(name) || headers.get(name.toLowerCase()) || undefined;
+    if (req.method !== 'GET') {
+        return sendLua('warn("Method Not Allowed");');
     }
 
-    const value = headers[name] ?? headers[name.toLowerCase()];
-    return Array.isArray(value) ? value[0] : value;
-};
-
-const getRequestUrl = (request: any) => {
-    try {
-        return new URL(request.url);
-    } catch {
-        const host = getHeader(request, 'host') || 'localhost';
-        const protocol = getHeader(request, 'x-forwarded-proto') || 'https';
-        return new URL(request.url, `${protocol}://${host}`);
-    }
-};
-
-const luaResponse = (script: string) =>
-    new Response(script, {
-        status: 200,
-        headers: {
-            'Content-Type': 'text/plain; charset=utf-8',
-            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate'
-        }
-    });
-
-export default async function handler(request: any) {
     if (!supabaseKey) {
-        return luaResponse('warn("Server Config Error: Missing API Key");');
+        return sendLua('warn("Server Config Error: Missing API Key");');
     }
 
-    const { searchParams } = getRequestUrl(request);
-    const key = searchParams.get('key');
-    const hwid = searchParams.get('hwid');
+    const key = req.query?.key;
+    const hwid = req.query?.hwid;
 
     if (!key || !hwid) {
-        return luaResponse('warn("Authentication Error: Key and HWID are required.");');
+        return sendLua('warn("Authentication Error: Key and HWID are required.");');
     }
 
-    const ipAddress = getHeader(request, 'cf-connecting-ip') || getHeader(request, 'x-forwarded-for') || 'Unknown IP';
+    const ipAddress = req.headers?.['cf-connecting-ip'] || req.headers?.['x-forwarded-for'] || 'Unknown IP';
 
     try {
         const supabase = createClient(supabaseUrl, supabaseKey, {
@@ -62,7 +40,7 @@ export default async function handler(request: any) {
         const rpcPromise = supabase.rpc('validate_and_get_script', {
             p_key_string: key,
             p_hwid: hwid,
-            p_ip_address: ipAddress
+            p_ip_address: Array.isArray(ipAddress) ? ipAddress[0] : ipAddress
         });
 
         const timeoutPromise = new Promise<never>((_, reject) => {
@@ -72,7 +50,7 @@ export default async function handler(request: any) {
         const { data, error } = await Promise.race([rpcPromise, timeoutPromise]);
 
         if (error) {
-            return luaResponse(`warn("Database Error: ${error.message}");`);
+            return sendLua(`warn("Database Error: ${error.message}");`);
         }
 
         if (data && data.success) {
@@ -91,12 +69,12 @@ getgenv().LRM_UserNote = "${data.note || ''}";
 
 `;
 
-            return luaResponse(scriptHeader + data.script_content);
+            return sendLua(scriptHeader + data.script_content);
         }
 
         const errorMessage = data?.error || 'Unknown Error';
-        return luaResponse(`warn("SlenderHub Gateway: ${errorMessage}"); LocalPlayer:Kick("SlenderHub: ${errorMessage}")`);
+        return sendLua(`warn("SlenderHub Gateway: ${errorMessage}"); LocalPlayer:Kick("SlenderHub: ${errorMessage}")`);
     } catch (err: any) {
-        return luaResponse(`warn("Internal Server Error: ${err.message}");`);
+        return sendLua(`warn("Internal Server Error: ${err.message}");`);
     }
 }
