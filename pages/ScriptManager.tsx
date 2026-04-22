@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useStore } from '../store';
-import { ArrowLeft, Code, Plus, Power, Save, Shield, Trash2 } from 'lucide-react';
+import { ArrowLeft, Code, Copy, Plus, Power, Save, Shield, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 type ProtectedScript = {
@@ -145,7 +145,13 @@ const ScriptManager: React.FC = () => {
     ].join('\n');
 
     await navigator.clipboard.writeText(snippet);
-    setCopiedId(scriptId);
+    setCopiedId(`loader-${scriptId}`);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const copyScriptId = async (scriptId: string) => {
+    await navigator.clipboard.writeText(scriptId);
+    setCopiedId(`id-${scriptId}`);
     setTimeout(() => setCopiedId(null), 2000);
   };
 
@@ -247,9 +253,28 @@ const ScriptManager: React.FC = () => {
                     <span className="ml-2 rounded-full bg-red-500/10 px-2 py-0.5 text-xs text-red-500">DISABLED</span>
                   )}
                 </h3>
-                <p className="font-mono text-xs text-slate-500" title={script.id}>
-                  ID: <span className="text-slate-400">{script.id.split('-')[0]}...</span>
-                </p>
+                <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-slate-800 bg-slate-950/80 px-3 py-2">
+                  <p className="min-w-0 font-mono text-xs text-slate-500" title={script.id}>
+                    ID: <span className="text-slate-400">{script.id}</span>
+                  </p>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void copyScriptId(script.id);
+                    }}
+                    className="shrink-0 rounded bg-slate-800 px-2 py-1 text-xs font-bold text-slate-300 transition-colors hover:bg-slate-700 hover:text-white"
+                    title="Copy script ID"
+                  >
+                    {copiedId === `id-${script.id}` ? (
+                      'Copied ID'
+                    ) : (
+                      <span className="flex items-center gap-1">
+                        <Copy className="h-3 w-3" />
+                        Script ID
+                      </span>
+                    )}
+                  </button>
+                </div>
 
                 <div className="mb-2 mt-4 flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950 p-2">
                   <span className="w-2/3 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-xs text-slate-400 select-all">
@@ -262,7 +287,7 @@ const ScriptManager: React.FC = () => {
                     }}
                     className="rounded bg-indigo-600 px-3 py-1 text-xs font-bold transition-colors hover:bg-indigo-500"
                   >
-                    {copiedId === script.id ? 'Copied' : 'Copy Loader'}
+                    {copiedId === `loader-${script.id}` ? 'Copied' : 'Copy Loader'}
                   </button>
                 </div>
 

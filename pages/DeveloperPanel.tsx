@@ -224,6 +224,25 @@ const DeveloperPanel: React.FC = () => {
     }
   };
 
+  const handleDeleteKey = async (keyId: string) => {
+    if (!confirm('Are you sure you want to permanently delete this key? This cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const { error: deleteError } = await supabase
+        .from('license_keys')
+        .delete()
+        .eq('id', keyId)
+        .eq('owner_id', user?.id);
+
+      if (deleteError) throw deleteError;
+      await fetchPanelData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete key.');
+    }
+  };
+
   const handleSaveGateway = async () => {
     try {
       setGenerating(true);
@@ -488,6 +507,13 @@ const DeveloperPanel: React.FC = () => {
                               className={`rounded-lg p-2 transition-colors ${isActive ? 'text-red-500 hover:bg-red-500/10' : 'text-green-500 hover:bg-green-500/10'}`}
                             >
                               {isActive ? <Trash2 className="h-4 w-4" /> : <RefreshCw className="h-4 w-4" />}
+                            </button>
+                            <button
+                              onClick={() => void handleDeleteKey(key.id)}
+                              title="Delete key permanently"
+                              className="rounded-lg p-2 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
+                            >
+                              <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
                         </td>
