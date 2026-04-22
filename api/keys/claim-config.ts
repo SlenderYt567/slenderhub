@@ -30,7 +30,7 @@ export default async function handler(req: any, res: any) {
 
         const { data: profile, error: profileError } = await supabase
             .from('profiles')
-            .select('shortener_url, discord_url, youtube_url, dev_tier')
+            .select('shortener_url, discord_url, youtube_url, monetag_url, dev_tier')
             .eq('id', ownerId)
             .single();
 
@@ -60,6 +60,7 @@ export default async function handler(req: any, res: any) {
                 shortener_url: profile.shortener_url || '',
                 discord_url: profile.discord_url || '',
                 youtube_url: profile.youtube_url || '',
+                monetag_url: profile.monetag_url || '',
                 dev_tier: profile.dev_tier || 'none',
             },
             script,

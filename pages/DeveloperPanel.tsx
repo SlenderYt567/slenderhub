@@ -36,6 +36,7 @@ type GatewayConfig = {
   shortener_url?: string | null;
   discord_url?: string | null;
   youtube_url?: string | null;
+  monetag_url?: string | null;
 };
 
 type KeyPlanPreset = {
@@ -80,6 +81,7 @@ const DeveloperPanel: React.FC = () => {
     shortener_url: '',
     discord_url: '',
     youtube_url: '',
+    monetag_url: '',
   });
   const [devTier, setDevTier] = useState<string>('none');
   const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
@@ -131,7 +133,7 @@ const DeveloperPanel: React.FC = () => {
             .order('created_at', { ascending: false }),
           supabase
             .from('profiles')
-            .select('shortener_url, discord_url, youtube_url, dev_tier')
+            .select('shortener_url, discord_url, youtube_url, monetag_url, dev_tier')
             .eq('id', user.id)
             .maybeSingle(),
         ]);
@@ -272,6 +274,7 @@ const DeveloperPanel: React.FC = () => {
           shortener_url: gatewayConfig.shortener_url || null,
           discord_url: gatewayConfig.discord_url || null,
           youtube_url: gatewayConfig.youtube_url || null,
+          monetag_url: gatewayConfig.monetag_url || null,
         })
         .eq('id', user?.id);
 
@@ -874,6 +877,22 @@ const DeveloperPanel: React.FC = () => {
                   className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm outline-none placeholder:text-gray-600 focus:ring-2 focus:ring-indigo-500"
                   placeholder="https://discord.gg/..."
                 />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm text-gray-400">Monetag Direct Link (Optional)</label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="url"
+                    value={gatewayConfig.monetag_url || ''}
+                    onChange={(e) => setGatewayConfig({ ...gatewayConfig, monetag_url: e.target.value })}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm outline-none placeholder:text-gray-600 focus:ring-2 focus:ring-blue-500"
+                    placeholder="https://go.monetag.com/..."
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  Paste your Monetag Direct Link here to monetize your key system.
+                </p>
               </div>
 
               <div className="flex gap-4 pt-4">

@@ -16,8 +16,9 @@ const UnlockKey: React.FC = () => {
     // Verification States
     const [youtubeVerified, setYoutubeVerified] = useState(false);
     const [discordVerified, setDiscordVerified] = useState(false);
+    const [monetagVerified, setMonetagVerified] = useState(false);
     const [socialTimer, setSocialTimer] = useState(0);
-    const [verifyingType, setVerifyingType] = useState<'youtube' | 'discord' | null>(null);
+    const [verifyingType, setVerifyingType] = useState<'youtube' | 'discord' | 'monetag' | null>(null);
 
     useEffect(() => {
         if (key) {
@@ -42,6 +43,7 @@ const UnlockKey: React.FC = () => {
         if (isCompleted) {
             setYoutubeVerified(true);
             setDiscordVerified(true);
+            setMonetagVerified(true);
         }
     }, [isCompleted]);
 
@@ -60,6 +62,9 @@ const UnlockKey: React.FC = () => {
             // Auto-verify if they don't exist
             if (!data.youtube_url) setYoutubeVerified(true);
             if (!data.discord_url) setDiscordVerified(true);
+            if (!data.monetag_url) setMonetagVerified(true);
+            else setMonetagVerified(false); 
+
 
         } catch (err: any) {
             setError(err.message);
@@ -68,12 +73,12 @@ const UnlockKey: React.FC = () => {
         }
     };
 
-    const handleVerifySocial = (type: 'youtube' | 'discord', url: string) => {
+    const handleVerifySocial = (type: 'youtube' | 'discord' | 'monetag', url: string) => {
         if (verifyingType) return; // Already verifying something
         
         window.open(url, '_blank');
         setVerifyingType(type);
-        setSocialTimer(12);
+        setSocialTimer(type === 'monetag' ? 15 : 12);
 
         const interval = setInterval(() => {
             setSocialTimer((prev) => {
@@ -81,6 +86,7 @@ const UnlockKey: React.FC = () => {
                     clearInterval(interval);
                     if (type === 'youtube') setYoutubeVerified(true);
                     if (type === 'discord') setDiscordVerified(true);
+                    if (type === 'monetag') setMonetagVerified(true);
                     setVerifyingType(null);
                     return 0;
                 }
@@ -134,7 +140,7 @@ const UnlockKey: React.FC = () => {
         );
     }
 
-    const allVerified = youtubeVerified && discordVerified;
+    const allVerified = youtubeVerified && discordVerified && monetagVerified;
     const showFinalKey = isCompleted || (!gatewayConfig?.shortener_url && allVerified);
 
     return (
@@ -214,6 +220,33 @@ const UnlockKey: React.FC = () => {
                                             {verifyingType === 'discord' ? <Loader2 className="w-6 h-6 text-indigo-400 animate-spin" /> : <Discord className="w-6 h-6 text-indigo-400" />}
                                             <span className="font-semibold text-gray-200">
                                                 {verifyingType === 'discord' ? `Aguarde ${socialTimer}s...` : 'Join Discord Server'}
+                                            </span>
+                                        </div>
+                                        <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-blue-400 transition-colors" />
+                                    </button>
+                                )
+                            )}
+
+                            {/* Monetag Direct Link Step */}
+                            {gatewayConfig?.monetag_url && (
+                                monetagVerified ? (
+                                    <div className="w-full flex items-center justify-between p-4 bg-green-500/10 border border-green-500/20 rounded-xl">
+                                        <div className="flex items-center gap-3">
+                                            <Shield className="w-6 h-6 text-green-500" />
+                                            <span className="font-semibold text-green-400">Ads Viewed</span>
+                                        </div>
+                                        <Check className="w-5 h-5 text-green-500" />
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={() => handleVerifySocial('monetag', gatewayConfig.monetag_url)}
+                                        disabled={verifyingType !== null}
+                                        className={`w-full flex items-center justify-between p-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-xl transition-all group ${verifyingType === 'monetag' ? 'ring-2 ring-blue-500' : ''}`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            {verifyingType === 'monetag' ? <Loader2 className="w-6 h-6 text-blue-500 animate-spin" /> : <Shield className="w-6 h-6 text-blue-500" />}
+                                            <span className="font-semibold text-gray-200">
+                                                {verifyingType === 'monetag' ? `Verifying Ads ${socialTimer}s...` : 'Verify with Ads (Monetag)'}
                                             </span>
                                         </div>
                                         <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-blue-400 transition-colors" />

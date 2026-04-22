@@ -19,6 +19,7 @@ type ClaimConfigResponse = {
     shortener_url?: string;
     discord_url?: string;
     youtube_url?: string;
+    monetag_url?: string;
     dev_tier?: string;
   };
   script?: {
@@ -47,8 +48,9 @@ const ClaimKey: React.FC = () => {
 
   const [youtubeVerified, setYoutubeVerified] = useState(false);
   const [discordVerified, setDiscordVerified] = useState(false);
+  const [monetagVerified, setMonetagVerified] = useState(false);
   const [socialTimer, setSocialTimer] = useState(0);
-  const [verifyingType, setVerifyingType] = useState<'youtube' | 'discord' | null>(null);
+  const [verifyingType, setVerifyingType] = useState<'youtube' | 'discord' | 'monetag' | null>(null);
 
   useEffect(() => {
     if (!ownerId) {
@@ -64,6 +66,7 @@ const ClaimKey: React.FC = () => {
     if (isCompleted) {
       setYoutubeVerified(true);
       setDiscordVerified(true);
+      setMonetagVerified(true);
     }
   }, [isCompleted]);
 
@@ -90,6 +93,8 @@ const ClaimKey: React.FC = () => {
 
       if (!payload.gateway?.youtube_url) setYoutubeVerified(true);
       if (!payload.gateway?.discord_url) setDiscordVerified(true);
+      if (!payload.gateway?.monetag_url) setMonetagVerified(true);
+      else setMonetagVerified(false); 
     } catch (err: any) {
       setError(err.message || 'Failed to load claim config.');
     } finally {
@@ -97,12 +102,12 @@ const ClaimKey: React.FC = () => {
     }
   };
 
-  const handleVerifySocial = (type: 'youtube' | 'discord', url: string) => {
+  const handleVerifySocial = (type: 'youtube' | 'discord' | 'monetag', url: string) => {
     if (verifyingType) return;
 
     window.open(url, '_blank');
     setVerifyingType(type);
-    setSocialTimer(12);
+    setSocialTimer(type === 'monetag' ? 15 : 12);
 
     const interval = window.setInterval(() => {
       setSocialTimer((prev) => {
@@ -110,6 +115,7 @@ const ClaimKey: React.FC = () => {
           window.clearInterval(interval);
           if (type === 'youtube') setYoutubeVerified(true);
           if (type === 'discord') setDiscordVerified(true);
+          if (type === 'monetag') setMonetagVerified(true);
           setVerifyingType(null);
           return 0;
         }
@@ -125,7 +131,7 @@ const ClaimKey: React.FC = () => {
     return url.toString();
   }, [durationDays, note, ownerId, prefix, scriptId]);
 
-  const allVerified = youtubeVerified && discordVerified;
+  const allVerified = youtubeVerified && discordVerified && monetagVerified;
   const readyToClaim = isCompleted || (!gatewayConfig?.shortener_url && allVerified);
 
   const handleClaimKey = async () => {
@@ -305,6 +311,37 @@ const ClaimKey: React.FC = () => {
                       )}
                       <span className="font-semibold text-gray-200">
                         {verifyingType === 'discord' ? `Wait ${socialTimer}s...` : 'Join Discord Server'}
+                      </span>
+                    </div>
+                    <ExternalLink className="h-4 w-4 text-gray-500" />
+                  </button>
+                )
+              )}
+
+              {/* Monetag Direct Link Step */}
+              {gatewayConfig?.monetag_url && (
+                monetagVerified ? (
+                  <div className="flex items-center justify-between rounded-xl border border-green-500/20 bg-green-500/10 p-4">
+                    <div className="flex items-center gap-3">
+                      <Shield className="h-6 w-6 text-green-500" />
+                      <span className="font-semibold text-green-400">Ads Viewed</span>
+                    </div>
+                    <Check className="h-5 w-5 text-green-500" />
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => handleVerifySocial('monetag', gatewayConfig.monetag_url)}
+                    disabled={verifyingType !== null}
+                    className={`flex w-full items-center justify-between rounded-xl border border-slate-700 bg-slate-800/50 p-4 transition-all hover:bg-slate-800 ${verifyingType === 'monetag' ? 'ring-2 ring-blue-500' : ''}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {verifyingType === 'monetag' ? (
+                        <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+                      ) : (
+                        <Shield className="h-6 w-6 text-blue-500" />
+                      )}
+                      <span className="font-semibold text-gray-200">
+                        {verifyingType === 'monetag' ? `Wait ${socialTimer}s...` : 'Verify with Ads (Monetag)'}
                       </span>
                     </div>
                     <ExternalLink className="h-4 w-4 text-gray-500" />
