@@ -48,7 +48,13 @@ export default async function handler(request: any) {
     }
 
     try {
-        const supabase = createClient(supabaseUrl, supabaseKey);
+        const supabase = createClient(supabaseUrl, supabaseKey, {
+            auth: {
+                autoRefreshToken: false,
+                persistSession: false,
+                detectSessionInUrl: false
+            }
+        });
 
         const rpcPromise = supabase.rpc('verify_license_key', {
             p_key_string: key,

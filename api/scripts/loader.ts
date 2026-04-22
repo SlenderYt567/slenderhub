@@ -51,7 +51,13 @@ export default async function handler(request: any) {
     const ipAddress = getHeader(request, 'cf-connecting-ip') || getHeader(request, 'x-forwarded-for') || 'Unknown IP';
 
     try {
-        const supabase = createClient(supabaseUrl, supabaseKey);
+        const supabase = createClient(supabaseUrl, supabaseKey, {
+            auth: {
+                autoRefreshToken: false,
+                persistSession: false,
+                detectSessionInUrl: false
+            }
+        });
 
         const rpcPromise = supabase.rpc('validate_and_get_script', {
             p_key_string: key,
