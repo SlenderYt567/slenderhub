@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Copy, Check, Server, Activity, ShoppingCart, Star } from 'lucide-react';
 
-const SupportedGames: React.FC = () => {
+const Scripts: React.FC = () => {
   const [copied, setCopied] = useState(false);
 
   const scriptCode = `loadstring(game:HttpGet("https://www.slenderhub.shop/api/exec"))()`;
@@ -93,4 +93,4 @@ const SupportedGames: React.FC = () => {
   );
 };
 
-export default SupportedGames;
+export default Scripts;

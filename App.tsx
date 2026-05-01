@@ -20,7 +20,7 @@ import GatewayVerify from './pages/GatewayVerify';
 import Pricing from './pages/Pricing';
 import ScriptManager from './pages/ScriptManager';
 import ClaimKey from './pages/ClaimKey';
-import SupportedGames from './pages/SupportedGames';
+import Scripts from './pages/Scripts';
 import { StoreProvider } from './store';
 
 const PAYPAL_CLIENT_ID = 'AdCW0tDanq77aiKHYBeikcyVMfgjcovBf5IB3OLF-y-Et1TeXaAsuVs08NnXPbfn5WAT6eHYv15itizq';
@@ -53,7 +53,7 @@ function App() {
                 <Route path="/claim" element={<ClaimKey />} />
                 <Route path="/verify-gateway" element={<GatewayVerify />} />
                 <Route path="/pricing" element={<Pricing />} />
-                <Route path="/supported-games" element={<SupportedGames />} />
+                <Route path="/scripts" element={<Scripts />} />
                 
                 {/* Fallback */}
                 <Route path="*" element={<Navigate to="/" replace />} />

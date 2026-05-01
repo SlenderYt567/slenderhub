@@ -43,8 +43,8 @@ const Navbar: React.FC = () => {
           <Link to="/contact" className={`hidden text-sm font-medium transition md:block ${isActive('/contact')}`}>
             Contact
           </Link>
-          <Link to="/supported-games" className={`hidden text-sm font-medium transition md:block ${isActive('/supported-games')}`}>
-            Supported Games
+          <Link to="/scripts" className={`hidden text-sm font-medium transition md:block ${isActive('/scripts')}`}>
+            Script
           </Link>
           <Link to="/pricing" className={`hidden text-sm font-medium transition md:block ${isActive('/pricing')}`}>
             Pricing
@@ -130,7 +130,7 @@ const Navbar: React.FC = () => {
         <div className="md:hidden border-t border-slate-800 bg-slate-950 px-4 py-4 space-y-3 shadow-xl">
           <Link to="/" onClick={() => setIsMenuOpen(false)} className={`block text-base font-medium ${isActive('/')}`}>Shop</Link>
           <Link to="/contact" onClick={() => setIsMenuOpen(false)} className={`block text-base font-medium ${isActive('/contact')}`}>Contact</Link>
-          <Link to="/supported-games" onClick={() => setIsMenuOpen(false)} className={`block text-base font-medium ${isActive('/supported-games')}`}>Supported Games</Link>
+          <Link to="/scripts" onClick={() => setIsMenuOpen(false)} className={`block text-base font-medium ${isActive('/scripts')}`}>Script</Link>
           <Link to="/pricing" onClick={() => setIsMenuOpen(false)} className={`block text-base font-medium ${isActive('/pricing')}`}>Pricing</Link>
           
           {isAuthenticated && (
