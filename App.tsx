@@ -1,5 +1,5 @@
 import React from 'react';
-import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { PayPalScriptProvider } from '@paypal/react-paypal-js';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';

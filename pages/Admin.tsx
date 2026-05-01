@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../store';
 import { Product, ProductVariant } from '../types';
-import { Plus, Package, DollarSign, Image as ImageIcon, Tag, ArrowLeft, Trash, Upload, RefreshCw, Loader2 } from 'lucide-react';
+import { Plus, Package, DollarSign, Image as ImageIcon, Tag, ArrowLeft, Trash, Upload, RefreshCw, Loader2, Edit2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 const Admin: React.FC = () => {
@@ -20,6 +20,7 @@ const Admin: React.FC = () => {
   const [inputCurrency, setInputCurrency] = useState<'USD' | 'BRL'>('USD');
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [newVariant, setNewVariant] = useState({ name: '', price: '', image: '' });
+  const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
 
   // Extract unique categories from existing products for suggestions
   const existingCategories = useMemo(() => {
@@ -76,18 +77,45 @@ const Admin: React.FC = () => {
     const rawPrice = parseFloat(newVariant.price);
     const finalPriceUSD = inputCurrency === 'BRL' ? rawPrice / exchangeRate : rawPrice;
 
-    const variant: ProductVariant = {
-      id: Date.now().toString() + Math.random().toString(),
-      name: newVariant.name,
-      price: finalPriceUSD,
-      image: newVariant.image || undefined
-    };
-    setVariants([...variants, variant]);
+    if (editingVariantId) {
+      setVariants(variants.map(v => v.id === editingVariantId ? {
+        ...v,
+        name: newVariant.name,
+        price: finalPriceUSD,
+        image: newVariant.image || undefined
+      } : v));
+      setEditingVariantId(null);
+    } else {
+      const variant: ProductVariant = {
+        id: Date.now().toString() + Math.random().toString(),
+        name: newVariant.name,
+        price: finalPriceUSD,
+        image: newVariant.image || undefined
+      };
+      setVariants([...variants, variant]);
+    }
     setNewVariant({ name: '', price: '', image: '' });
+  };
+
+  const editVariant = (variant: ProductVariant) => {
+    const variantPriceInInputCurrency = inputCurrency === 'BRL' 
+      ? (variant.price * exchangeRate).toFixed(2) 
+      : variant.price.toFixed(2);
+      
+    setNewVariant({
+      name: variant.name,
+      price: variantPriceInInputCurrency,
+      image: variant.image || ''
+    });
+    setEditingVariantId(variant.id);
   };
 
   const removeVariant = (id: string) => {
     setVariants(variants.filter(v => v.id !== id));
+    if (editingVariantId === id) {
+      setEditingVariantId(null);
+      setNewVariant({ name: '', price: '', image: '' });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -206,9 +234,14 @@ const Admin: React.FC = () => {
                           : `$${v.price.toFixed(2)}`}
                       </span>
                     </div>
-                    <button type="button" onClick={() => removeVariant(v.id)} className="text-red-500 hover:text-white">
-                      <Trash className="h-4 w-4" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button type="button" onClick={() => editVariant(v)} className="text-blue-500 hover:text-white">
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                      <button type="button" onClick={() => removeVariant(v.id)} className="text-red-500 hover:text-white">
+                        <Trash className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -239,10 +272,22 @@ const Admin: React.FC = () => {
               <button
                 type="button"
                 onClick={handleAddVariant}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-500"
+                className={`rounded-lg px-4 py-2 text-sm font-bold text-white ${editingVariantId ? 'bg-orange-600 hover:bg-orange-500' : 'bg-blue-600 hover:bg-blue-500'}`}
               >
-                Add
+                {editingVariantId ? 'Update' : 'Add'}
               </button>
+              {editingVariantId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingVariantId(null);
+                    setNewVariant({ name: '', price: '', image: '' });
+                  }}
+                  className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-bold text-white hover:bg-slate-600"
+                >
+                  Cancel
+                </button>
+              )}
             </div>
           </div>
 
