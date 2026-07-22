@@ -1,17 +1,85 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useStore } from '../store';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, Clock, ArrowRight, User, CheckCircle, XCircle, DollarSign, Image as ImageIcon } from 'lucide-react';
+import { MessageSquare, Clock, ArrowRight, User, CheckCircle, XCircle, DollarSign, Image as ImageIcon, Key, Plus, RefreshCw, Layers } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 
 const AdminDashboard: React.FC = () => {
-    const { chats, isAdmin, verifyPayment, closeChat } = useStore();
+    const { chats, isAdmin, products, verifyPayment, closeChat } = useStore();
     const navigate = useNavigate();
+    const [deliveringKeyId, setDeliveringKeyId] = useState<string | null>(null);
+    const [deliveryFeedback, setDeliveryFeedback] = useState<{ [key: string]: string }>({});
+
+    // Key Management State
+    const [selectedProductId, setSelectedProductId] = useState<string>('default-product');
+    const [newKeysText, setNewKeysText] = useState<string>('');
+    const [stockList, setStockList] = useState<any[]>([]);
+    const [loadingStock, setLoadingStock] = useState<boolean>(false);
+    const [addKeyMessage, setAddKeyMessage] = useState<string | null>(null);
 
     useEffect(() => {
         if (!isAdmin) {
             navigate('/login');
+        } else {
+            fetchStockList();
         }
     }, [isAdmin, navigate]);
+
+    const fetchStockList = async () => {
+        setLoadingStock(true);
+        try {
+            const { data, error } = await supabase
+                .from('digital_keys')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (!error && data) {
+                setStockList(data);
+            }
+        } catch (e) {
+            console.error("Erro ao carregar estoque:", e);
+        } finally {
+            setLoadingStock(false);
+        }
+    };
+
+    const handleAddKeysToStock = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newKeysText.trim()) return;
+
+        const lines = newKeysText
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0);
+
+        if (lines.length === 0) return;
+
+        setAddKeyMessage('Salvando keys no estoque...');
+
+        const rowsToInsert = lines.map(content => ({
+            product_id: selectedProductId,
+            content: content,
+            status: 'AVAILABLE'
+        }));
+
+        try {
+            const { data, error } = await supabase
+                .from('digital_keys')
+                .insert(rowsToInsert)
+                .select();
+
+            if (error) {
+                setAddKeyMessage(`❌ Erro ao salvar: ${error.message}`);
+            } else {
+                setAddKeyMessage(`✅ ${lines.length} key(s) adicionada(s) com sucesso ao produto "${selectedProductId}"!`);
+                setNewKeysText('');
+                fetchStockList();
+            }
+        } catch (err: any) {
+            setAddKeyMessage(`❌ Erro: ${err.message || 'Falha ao conectar com o Supabase'}`);
+        }
+    };
+
 
     // pending_payment implies they uploaded proof but it hasn't been verified
     const pendingPayments = chats.filter(c => c.status === 'pending_payment');
@@ -28,14 +96,162 @@ const AdminDashboard: React.FC = () => {
         closeChat(chatId);
     };
 
+    const handleDeliverKeyAndApprove = async (chat: any) => {
+        setDeliveringKeyId(chat.id);
+        setDeliveryFeedback(prev => ({ ...prev, [chat.id]: 'Enviando Key...' }));
+
+        const targetEmail = chat.contactEmail || chat.customerEmail || (chat.customerName && chat.customerName.includes('@') ? chat.customerName : 'phcbelfort@gmail.com');
+
+        try {
+            const response = await fetch('/api/deliver-key', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    orderId: chat.id,
+                    productId: chat.productId || 'default-product',
+                    productTitle: chat.productTitle || 'Digital Product Slender Hub',
+                    customerEmail: targetEmail,
+                    customerName: chat.customerName || 'Cliente'
+                })
+            });
+
+            const text = await response.text();
+            let data: any = {};
+            try {
+                data = JSON.parse(text);
+            } catch {
+                data = { message: text || `Status ${response.status}` };
+            }
+
+            if (response.ok && data.success) {
+                setDeliveryFeedback(prev => ({ ...prev, [chat.id]: '✅ Key Enviada com Sucesso!' }));
+                verifyPayment(chat.id);
+            } else {
+                setDeliveryFeedback(prev => ({ ...prev, [chat.id]: `⚠️ ${data.message || data.error || 'Erro no envio'}` }));
+            }
+        } catch (error: any) {
+            console.error("Erro ao enviar key:", error);
+            setDeliveryFeedback(prev => ({ ...prev, [chat.id]: `❌ Erro: ${error.message || 'Falha de conexão'}` }));
+        } finally {
+            setDeliveringKeyId(null);
+        }
+    };
+
+
     return (
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-white">Support Dashboard</h1>
-                <p className="text-gray-400">Manage payment verifications and active conversations.</p>
+            <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-white">Support & Keys Dashboard</h1>
+                    <p className="text-gray-400">Gerencie pagamentos, entregas automáticas e estoque de keys digitais.</p>
+                </div>
+            </div>
+
+            {/* GERENCIADOR DE ESTOQUE DE KEYS */}
+            <div className="mb-12 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-6 backdrop-blur shadow-xl">
+                <div className="mb-6 flex items-center justify-between border-b border-slate-800 pb-4">
+                    <h2 className="flex items-center gap-2 text-xl font-bold text-white">
+                        <Key className="h-5 w-5 text-indigo-400" />
+                        Estoque de Keys & Links Digitais
+                    </h2>
+                    <div className="flex items-center gap-4 text-xs">
+                        <span className="rounded-full bg-emerald-500/10 px-3 py-1 font-bold text-emerald-400 border border-emerald-500/20">
+                            Disponíveis: {stockList.filter(k => k.status === 'AVAILABLE').length}
+                        </span>
+                        <span className="rounded-full bg-blue-500/10 px-3 py-1 font-bold text-blue-400 border border-blue-500/20">
+                            Entregues: {stockList.filter(k => k.status === 'DELIVERED').length}
+                        </span>
+                        <button 
+                            onClick={fetchStockList} 
+                            className="flex items-center gap-1 rounded bg-slate-800 px-2.5 py-1 text-gray-400 hover:text-white"
+                        >
+                            <RefreshCw className={`h-3.5 w-3.5 ${loadingStock ? 'animate-spin' : ''}`} /> Atualizar
+                        </button>
+                    </div>
+                </div>
+
+                <form onSubmit={handleAddKeysToStock} className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                    <div className="lg:col-span-1 space-y-3">
+                        <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
+                            Produto Alvo (ID)
+                        </label>
+                        <select
+                            value={selectedProductId}
+                            onChange={(e) => setSelectedProductId(e.target.value)}
+                            className="w-full rounded-lg border border-slate-700 bg-slate-950 p-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none"
+                        >
+                            <option value="default-product">Geral / Produto Padrão (default-product)</option>
+                            {products.map(p => (
+                                <option key={p.id} value={p.id}>{p.title} ({p.id})</option>
+                            ))}
+                        </select>
+
+                        <button
+                            type="submit"
+                            className="w-full flex items-center justify-center gap-2 rounded-lg bg-indigo-600 py-3 text-sm font-bold text-white shadow-lg transition hover:bg-indigo-500"
+                        >
+                            <Plus className="h-4 w-4" /> Adicionar ao Estoque
+                        </button>
+
+                        {addKeyMessage && (
+                            <p className="text-xs font-medium text-indigo-300 mt-2">
+                                {addKeyMessage}
+                            </p>
+                        )}
+                    </div>
+
+                    <div className="lg:col-span-2">
+                        <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">
+                            Keys ou Links de Acesso (Uma chave/link por linha)
+                        </label>
+                        <textarea
+                            rows={4}
+                            value={newKeysText}
+                            onChange={(e) => setNewKeysText(e.target.value)}
+                            placeholder="Cole aqui suas keys ou links, uma por linha:&#10;SLENDER-KEY-AAAA-1111&#10;SLENDER-KEY-BBBB-2222&#10;https://slenderhub.shop/claim?access=xyz"
+                            className="w-full rounded-lg border border-slate-700 bg-slate-950 p-3 font-mono text-sm text-indigo-300 placeholder-gray-600 focus:border-indigo-500 focus:outline-none"
+                        />
+                    </div>
+                </form>
+
+                {/* TABELA DE KEYS NO ESTOQUE */}
+                <div className="mt-6 overflow-hidden rounded-xl border border-slate-800 bg-slate-950/60">
+                    <div className="max-h-48 overflow-y-auto">
+                        <table className="w-full text-left text-xs text-gray-400">
+                            <thead className="sticky top-0 bg-slate-900 text-gray-300">
+                                <tr>
+                                    <th className="px-4 py-2">Produto ID</th>
+                                    <th className="px-4 py-2">Key / Link</th>
+                                    <th className="px-4 py-2">Status</th>
+                                    <th className="px-4 py-2">Entregue Para</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800/60">
+                                {stockList.map(item => (
+                                    <tr key={item.id} className="hover:bg-slate-900/40">
+                                        <td className="px-4 py-2 font-semibold text-slate-300">{item.product_id}</td>
+                                        <td className="px-4 py-2 font-mono text-indigo-300 truncate max-w-xs">{item.content}</td>
+                                        <td className="px-4 py-2">
+                                            <span className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase ${item.status === 'AVAILABLE' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-blue-500/10 text-blue-400'}`}>
+                                                {item.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-2 text-gray-500">{item.assigned_to_email || '-'}</td>
+                                    </tr>
+                                ))}
+                                {stockList.length === 0 && (
+                                    <tr>
+                                        <td colSpan={4} className="px-4 py-6 text-center text-gray-500">Nenhuma key cadastrada ainda no banco de dados.</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
             {/* Pending Payments Section */}
+
             <div className="mb-12">
                 <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-white">
                     <span className="relative flex h-3 w-3">
@@ -77,19 +293,35 @@ const AdminDashboard: React.FC = () => {
                                         <span className="rounded bg-yellow-500/10 px-2 py-1 text-xs font-bold uppercase text-yellow-500">Verifying</span>
                                     </div>
 
-                                    <div className="flex gap-2">
+                                    <div className="flex flex-col gap-2">
                                         <button
-                                            onClick={() => handleVerify(chat.id)}
-                                            className="flex-1 rounded-lg bg-green-600 py-2 text-sm font-bold text-white hover:bg-green-500"
+                                            onClick={() => handleDeliverKeyAndApprove(chat)}
+                                            disabled={deliveringKeyId === chat.id}
+                                            className="w-full rounded-lg bg-indigo-600 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-lg transition hover:bg-indigo-500 disabled:opacity-50"
                                         >
-                                            Approve
+                                            {deliveringKeyId === chat.id ? '🔑 Resgatando & Enviando...' : '🔑 Aprovar & Enviar Key por E-mail'}
                                         </button>
-                                        <button
-                                            onClick={() => handleReject(chat.id)}
-                                            className="flex-1 rounded-lg bg-red-600 py-2 text-sm font-bold text-white hover:bg-red-500"
-                                        >
-                                            Reject
-                                        </button>
+
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => handleVerify(chat.id)}
+                                                className="flex-1 rounded-lg bg-green-600/80 py-2 text-xs font-bold text-white hover:bg-green-500"
+                                            >
+                                                Aprovar Apenas
+                                            </button>
+                                            <button
+                                                onClick={() => handleReject(chat.id)}
+                                                className="flex-1 rounded-lg bg-red-600/80 py-2 text-xs font-bold text-white hover:bg-red-500"
+                                            >
+                                                Rejeitar
+                                            </button>
+                                        </div>
+
+                                        {deliveryFeedback[chat.id] && (
+                                            <p className="mt-1 text-center text-xs font-semibold text-indigo-400">
+                                                {deliveryFeedback[chat.id]}
+                                            </p>
+                                        )}
                                     </div>
                                     <button
                                         onClick={() => navigate(`/chat/${chat.id}`)}

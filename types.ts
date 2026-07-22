@@ -47,3 +47,17 @@ export interface User {
   id: string;
   email?: string;
 }
+
+export type KeyStatus = 'AVAILABLE' | 'RESERVED' | 'DELIVERED';
+
+export interface DigitalKey {
+  id: string;
+  productId: string;
+  content: string;
+  status: KeyStatus;
+  assignedToEmail?: string;
+  orderId?: string;
+  deliveredAt?: string;
+  createdAt: string;
+}
+
