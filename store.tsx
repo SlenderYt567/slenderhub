@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Product, CartItem, Category, ChatSession, ChatMessage, ProductVariant, User } from './types';
 import { supabase } from './lib/supabaseClient';
+import { ToastContainer, ToastMessage, ToastType } from './components/Toast';
 
 export type Currency = 'USD' | 'BRL';
 
@@ -32,6 +33,8 @@ interface StoreContextType {
   setCurrency: (currency: Currency) => void;
   exchangeRate: number;
   formatPrice: (priceInUsd: number) => string;
+  // Notifications
+  showToast: (text: string, type?: ToastType) => void;
   // Global Loading
   loading: boolean;
 }
@@ -43,10 +46,39 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [cart, setCart] = useState<CartItem[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
-  // Currency State
+  // Currency State - Cotação de Moeda Dinâmica (USD -> BRL)
   const [currency, setCurrency] = useState<Currency>('USD');
-  const exchangeRate = 6.0; // Fixed rate: 1 USD = 6 BRL
+  const [exchangeRate, setExchangeRate] = useState<number>(5.80);
+
+  const showToast = (text: string, type: ToastType = 'info') => {
+    const id = Date.now().toString() + Math.random().toString(36).substring(2, 6);
+    setToasts(prev => [...prev, { id, text, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4000);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
+  // Buscar cotação real do dólar em tempo real
+  useEffect(() => {
+    fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL')
+      .then(res => res.json())
+      .then(data => {
+        if (data?.USDBRL?.bid) {
+          const rate = parseFloat(parseFloat(data.USDBRL.bid).toFixed(2));
+          setExchangeRate(rate);
+        }
+      })
+      .catch(() => {
+        // Fallback em caso de offline
+        setExchangeRate(5.80);
+      });
+  }, []);
 
   // Admin Check
   const isAdmin = user?.email === 'slenderyt9@gmail.com';
@@ -457,10 +489,12 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setCurrency,
         exchangeRate,
         formatPrice,
+        showToast,
         loading
       }}
     >
       {children}
+      <ToastContainer toasts={toasts} onClose={removeToast} />
     </StoreContext.Provider>
   );
 };

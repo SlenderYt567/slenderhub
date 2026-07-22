@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useStore } from '../store';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, Clock, ArrowRight, User, CheckCircle, XCircle, DollarSign, Image as ImageIcon, Key, Plus, RefreshCw, Layers } from 'lucide-react';
+import { MessageSquare, Clock, ArrowRight, User, CheckCircle, XCircle, DollarSign, Image as ImageIcon, Key, Plus, RefreshCw, Layers, Search, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 const AdminDashboard: React.FC = () => {
-    const { chats, isAdmin, products, verifyPayment, closeChat } = useStore();
+    const { chats, isAdmin, products, verifyPayment, closeChat, showToast } = useStore();
     const navigate = useNavigate();
     const [deliveringKeyId, setDeliveringKeyId] = useState<string | null>(null);
     const [deliveryFeedback, setDeliveryFeedback] = useState<{ [key: string]: string }>({});
@@ -16,6 +16,8 @@ const AdminDashboard: React.FC = () => {
     const [stockList, setStockList] = useState<any[]>([]);
     const [loadingStock, setLoadingStock] = useState<boolean>(false);
     const [addKeyMessage, setAddKeyMessage] = useState<string | null>(null);
+    const [keySearchQuery, setKeySearchQuery] = useState<string>('');
+    const [keyFilterStatus, setKeyFilterStatus] = useState<'ALL' | 'AVAILABLE' | 'DELIVERED'>('ALL');
 
     useEffect(() => {
         if (!isAdmin) {
@@ -42,6 +44,35 @@ const AdminDashboard: React.FC = () => {
             setLoadingStock(false);
         }
     };
+
+    const handleDeleteKey = async (keyId: string) => {
+        try {
+            const { error } = await supabase
+                .from('digital_keys')
+                .delete()
+                .eq('id', keyId);
+
+            if (!error) {
+                showToast('Key removida do estoque!', 'success');
+                setStockList(prev => prev.filter(k => k.id !== keyId));
+            } else {
+                showToast(`Erro ao deletar: ${error.message}`, 'error');
+            }
+        } catch (err: any) {
+            showToast(`Erro: ${err.message}`, 'error');
+        }
+    };
+
+    const filteredStockList = stockList.filter(item => {
+        const matchesStatus = keyFilterStatus === 'ALL' || item.status === keyFilterStatus;
+        const matchesQuery = !keySearchQuery || 
+            (item.content && item.content.toLowerCase().includes(keySearchQuery.toLowerCase())) ||
+            (item.assigned_to_email && item.assigned_to_email.toLowerCase().includes(keySearchQuery.toLowerCase())) ||
+            (item.product_id && item.product_id.toLowerCase().includes(keySearchQuery.toLowerCase()));
+
+        return matchesStatus && matchesQuery;
+    });
+
 
     const handleAddKeysToStock = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -214,34 +245,83 @@ const AdminDashboard: React.FC = () => {
                     </div>
                 </form>
 
-                {/* TABELA DE KEYS NO ESTOQUE */}
-                <div className="mt-6 overflow-hidden rounded-xl border border-slate-800 bg-slate-950/60">
-                    <div className="max-h-48 overflow-y-auto">
+                {/* CONTROLES E TABELA DE KEYS NO ESTOQUE */}
+                <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-3">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-gray-500" />
+                        <input
+                            type="text"
+                            value={keySearchQuery}
+                            onChange={(e) => setKeySearchQuery(e.target.value)}
+                            placeholder="Buscar por Key, Produto ID ou E-mail do cliente..."
+                            className="w-full rounded-lg border border-slate-800 bg-slate-950/80 py-2 pl-9 pr-3 text-xs text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none"
+                        />
+                    </div>
+
+                    <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 self-start sm:self-auto text-xs">
+                        <button
+                            type="button"
+                            onClick={() => setKeyFilterStatus('ALL')}
+                            className={`px-3 py-1 rounded font-medium transition ${keyFilterStatus === 'ALL' ? 'bg-indigo-600 text-white font-bold' : 'text-gray-400 hover:text-white'}`}
+                        >
+                            Todas ({stockList.length})
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setKeyFilterStatus('AVAILABLE')}
+                            className={`px-3 py-1 rounded font-medium transition ${keyFilterStatus === 'AVAILABLE' ? 'bg-emerald-600 text-white font-bold' : 'text-gray-400 hover:text-white'}`}
+                        >
+                            Disponíveis ({stockList.filter(k => k.status === 'AVAILABLE').length})
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setKeyFilterStatus('DELIVERED')}
+                            className={`px-3 py-1 rounded font-medium transition ${keyFilterStatus === 'DELIVERED' ? 'bg-blue-600 text-white font-bold' : 'text-gray-400 hover:text-white'}`}
+                        >
+                            Entregues ({stockList.filter(k => k.status === 'DELIVERED').length})
+                        </button>
+                    </div>
+                </div>
+
+                <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950/60 shadow-inner">
+                    <div className="max-h-56 overflow-y-auto">
                         <table className="w-full text-left text-xs text-gray-400">
-                            <thead className="sticky top-0 bg-slate-900 text-gray-300">
+                            <thead className="sticky top-0 bg-slate-900 text-gray-300 z-10 shadow">
                                 <tr>
-                                    <th className="px-4 py-2">Produto ID</th>
-                                    <th className="px-4 py-2">Key / Link</th>
-                                    <th className="px-4 py-2">Status</th>
-                                    <th className="px-4 py-2">Entregue Para</th>
+                                    <th className="px-4 py-2.5 font-semibold">Produto ID</th>
+                                    <th className="px-4 py-2.5 font-semibold">Key / Link</th>
+                                    <th className="px-4 py-2.5 font-semibold">Status</th>
+                                    <th className="px-4 py-2.5 font-semibold">Entregue Para</th>
+                                    <th className="px-4 py-2.5 font-semibold text-right">Ações</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800/60">
-                                {stockList.map(item => (
-                                    <tr key={item.id} className="hover:bg-slate-900/40">
-                                        <td className="px-4 py-2 font-semibold text-slate-300">{item.product_id}</td>
-                                        <td className="px-4 py-2 font-mono text-indigo-300 truncate max-w-xs">{item.content}</td>
-                                        <td className="px-4 py-2">
-                                            <span className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase ${item.status === 'AVAILABLE' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-blue-500/10 text-blue-400'}`}>
+                                {filteredStockList.map(item => (
+                                    <tr key={item.id} className="hover:bg-slate-900/50 transition">
+                                        <td className="px-4 py-2.5 font-semibold text-slate-300">{item.product_id}</td>
+                                        <td className="px-4 py-2.5 font-mono text-indigo-300 truncate max-w-xs select-all">{item.content}</td>
+                                        <td className="px-4 py-2.5">
+                                            <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${item.status === 'AVAILABLE' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
                                                 {item.status}
                                             </span>
                                         </td>
-                                        <td className="px-4 py-2 text-gray-500">{item.assigned_to_email || '-'}</td>
+                                        <td className="px-4 py-2.5 text-gray-400 font-medium">{item.assigned_to_email || '-'}</td>
+                                        <td className="px-4 py-2.5 text-right">
+                                            <button
+                                                onClick={() => handleDeleteKey(item.id)}
+                                                className="rounded p-1 text-gray-500 hover:bg-red-500/10 hover:text-red-400 transition"
+                                                title="Remover Key"
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))}
-                                {stockList.length === 0 && (
+                                {filteredStockList.length === 0 && (
                                     <tr>
-                                        <td colSpan={4} className="px-4 py-6 text-center text-gray-500">Nenhuma key cadastrada ainda no banco de dados.</td>
+                                        <td colSpan={5} className="px-4 py-8 text-center text-gray-500 font-medium">
+                                            {stockList.length === 0 ? 'Nenhuma key cadastrada ainda no estoque.' : 'Nenhuma key encontrada com este filtro.'}
+                                        </td>
                                     </tr>
                                 )}
                             </tbody>
