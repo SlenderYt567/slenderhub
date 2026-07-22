@@ -63,7 +63,26 @@ ALTER TABLE public.chat_sessions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chat_messages DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.digital_keys DISABLE ROW LEVEL SECURITY;
 
--- 6. Stored Procedure Atômica para Resgate Seguro de Keys (Sem Duplicatas)
+-- 6. Tabela de Log de Verificações de Keys (Analytics + Auditoria)
+CREATE TABLE IF NOT EXISTS public.key_verify_logs (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    key_string text NOT NULL,
+    hwid text,
+    ip_address text,
+    success boolean NOT NULL DEFAULT false,
+    reason text,
+    script_id text,
+    created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Index para queries de analytics (por key e por data)
+CREATE INDEX IF NOT EXISTS idx_key_verify_logs_key ON public.key_verify_logs(key_string);
+CREATE INDEX IF NOT EXISTS idx_key_verify_logs_created ON public.key_verify_logs(created_at DESC);
+
+-- Desabilitar RLS (acesso via service role na API)
+ALTER TABLE public.key_verify_logs DISABLE ROW LEVEL SECURITY;
+
+-- 7. Stored Procedure Atômica para Resgate Seguro de Keys (Sem Duplicatas)
 CREATE OR REPLACE FUNCTION public.deliver_key_atomic(
     p_product_id text,
     p_order_id text,
