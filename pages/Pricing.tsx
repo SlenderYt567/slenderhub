@@ -86,7 +86,7 @@ const plans = [
 ];
 
 const Pricing: React.FC = () => {
-  const { addToCart, clearCart } = useStore();
+  const { addToCart, clearCart, formatPrice, currency } = useStore();
   const navigate = useNavigate();
 
   const handleBuy = (plan: typeof plans[0]) => {
@@ -138,6 +138,9 @@ const Pricing: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
           {plans.map((plan) => {
             const Icon = plan.icon;
+            const formattedPrice = formatPrice(plan.priceUSD);
+            const priceSymbol = currency === 'BRL' ? 'R$' : '$';
+            const priceValue = formattedPrice.replace(priceSymbol, '').trim();
 
             return (
               <div
@@ -165,11 +168,11 @@ const Pricing: React.FC = () => {
                   {/* Price */}
                   <div className="mb-6">
                     <div className="flex items-baseline gap-1">
-                      <span className="text-sm text-gray-400">$</span>
+                      <span className="text-sm text-gray-400">{priceSymbol}</span>
                       <span className="text-4xl font-black text-white">
-                        {plan.priceUSD.toFixed(2)}
+                        {priceValue}
                       </span>
-                      <span className="text-xs text-gray-500 ml-1">USD</span>
+                      <span className="text-xs text-gray-500 ml-1">{currency}</span>
                     </div>
                     <p className="text-xs text-gray-500 mt-1">one-time payment</p>
                   </div>
@@ -257,7 +260,7 @@ const Pricing: React.FC = () => {
             },
             {
               q: 'What currency are prices in?',
-              a: 'All prices are in USD (US Dollars). Payment can be made via PIX or other supported methods.'
+              a: 'Prices can be viewed in USD or BRL using the currency switcher. Checkout keeps the USD base value for payment compatibility.'
             },
           ].map((item) => (
             <div key={item.q} className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
