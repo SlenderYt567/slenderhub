@@ -107,6 +107,10 @@ function getPlanBadge(note: string | null | undefined) {
   return { label: 'CUSTOM', className: 'text-slate-400 bg-slate-400/10 border border-slate-400/20' };
 }
 
+function formatKeyNote(note: string | null | undefined) {
+  return (note || '').replace(/\s*\[claim:[a-zA-Z0-9_-]+\]\s*$/g, '').trim() || '—';
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Confirm Modal (replaces window.confirm)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -792,7 +796,7 @@ end
 
                         {/* Note */}
                         <td className="px-6 py-4">
-                          <span className="text-sm text-gray-300">{key.note || '—'}</span>
+                          <span className="text-sm text-gray-300">{formatKeyNote(key.note)}</span>
                         </td>
 
                         {/* Script */}

@@ -8,6 +8,11 @@ const generateKey = (prefix: string = 'SLENDER') => {
     return `${prefix}-${randomPart()}-${randomPart()}-${randomPart()}`;
 };
 
+const getClaimMarker = (claimToken: unknown) => {
+    const safeToken = (claimToken || '').toString().replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80);
+    return safeToken ? `[claim:${safeToken}]` : '';
+};
+
 export default async function handler(req: any, res: any) {
     if (req.method !== 'POST') {
         return res.status(405).json({ success: false, error: 'Method Not Allowed' });
@@ -24,6 +29,7 @@ export default async function handler(req: any, res: any) {
             durationDays,
             prefix,
             note,
+            claimToken,
         } = req.body || {};
 
         if (!ownerId) {
@@ -61,10 +67,46 @@ export default async function handler(req: any, res: any) {
             }
         }
 
+        const nowIso = new Date().toISOString();
+        const claimMarker = getClaimMarker(claimToken);
+        const baseNote = note || 'Gateway claim';
+        const storedNote = claimMarker ? `${baseNote} ${claimMarker}` : baseNote;
+
+        if (claimMarker) {
+            let activeClaimQuery = supabase
+                .from('license_keys')
+                .select('id, key_string, expires_at, script_id')
+                .eq('owner_id', ownerId)
+                .eq('note', storedNote)
+                .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            activeClaimQuery = scriptId
+                ? activeClaimQuery.eq('script_id', scriptId)
+                : activeClaimQuery.is('script_id', null);
+
+            const { data: activeKeys, error: activeKeyError } = await activeClaimQuery;
+
+            if (activeKeyError) {
+                throw activeKeyError;
+            }
+
+            if (activeKeys && activeKeys.length > 0) {
+                return res.status(200).json({
+                    success: true,
+                    key: activeKeys[0],
+                    reused: true,
+                });
+            }
+        }
+
+        const activeLimitFilter = `expires_at.is.null,expires_at.gt.${nowIso}`;
         const { count, error: countError } = await supabase
             .from('license_keys')
             .select('*', { count: 'exact', head: true })
-            .eq('owner_id', ownerId);
+            .eq('owner_id', ownerId)
+            .or(activeLimitFilter);
 
         if (countError) {
             throw countError;
@@ -86,7 +128,7 @@ export default async function handler(req: any, res: any) {
                 owner_id: ownerId,
                 key_string: keyString,
                 expires_at: expiresAt,
-                note: note || 'Gateway claim',
+                note: storedNote,
                 script_id: scriptId || null,
             })
             .select('id, key_string, expires_at, script_id')

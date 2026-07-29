@@ -52,6 +52,11 @@ const ClaimKey: React.FC = () => {
   const [socialTimer, setSocialTimer] = useState(0);
   const [verifyingType, setVerifyingType] = useState<'youtube' | 'discord' | 'monetag' | null>(null);
 
+  const claimStorageKey = useMemo(() => {
+    const rawKey = `${ownerId}|${scriptId || 'global'}|${durationDays}|${prefix}|${note}`;
+    return `slenderhub_claim_${btoa(unescape(encodeURIComponent(rawKey))).replace(/=+$/g, '')}`;
+  }, [durationDays, note, ownerId, prefix, scriptId]);
+
   useEffect(() => {
     if (!ownerId) {
       setError('Missing owner configuration in claim link.');
@@ -139,6 +144,12 @@ const ClaimKey: React.FC = () => {
       setClaiming(true);
       setError(null);
 
+      let claimToken = localStorage.getItem(claimStorageKey);
+      if (!claimToken) {
+        claimToken = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        localStorage.setItem(claimStorageKey, claimToken);
+      }
+
       const response = await fetch('/api/keys/claim', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -148,6 +159,7 @@ const ClaimKey: React.FC = () => {
           durationDays,
           prefix,
           note,
+          claimToken,
         }),
       });
 
