@@ -1,39 +1,56 @@
+import { createClient } from '@supabase/supabase-js';
+
 export const config = {
     runtime: 'edge',
 };
 
-export default async function handler(request: Request) {
-    // Pega o header User-Agent da requisição
-    const userAgent = request.headers.get('user-agent') || '';
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    // Verifica se a requisição está vindo do cliente Roblox
+export default async function handler(request: Request) {
+    // Verificar User-Agent Roblox (proteção básica)
+    const userAgent = request.headers.get('user-agent') || '';
     const isRoblox = userAgent.toLowerCase().includes('roblox');
 
     if (!isRoblox) {
-        // Bloqueia acessos no navegador ou outros testadores HTTP
         return new Response('ERRO: Você não pode acessar o código aberto desse script.', {
             status: 403,
             headers: { 'Content-Type': 'text/plain; charset=utf-8' }
         });
     }
 
-    // URL RAW do Script Protegido no GitHub
-    const SCRIPT_RAW_URL = 'https://raw.githubusercontent.com/SlenderYt567/sc/refs/heads/main/SlenderHub%20Script';
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+        return new Response('-- Erro de configuração do servidor.', { status: 500 });
+    }
+
+    // Extrair scriptId da query string
+    const url = new URL(request.url);
+    const scriptId = url.searchParams.get('script_id') || url.searchParams.get('scriptId');
+
+    if (!scriptId) {
+        return new Response('-- script_id é obrigatório.', { status: 400 });
+    }
 
     try {
-        const fetchResponse = await fetch(SCRIPT_RAW_URL, {
-            // Se o repo for privado você pode mandar um token de autorização
-            // headers: { 'Authorization': `token SEU_TOKEN_AQUI` }
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+            auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false }
         });
 
-        if (!fetchResponse.ok) {
-            return new Response('-- Falha ao obter o script no servidor.', { status: 500 });
+        // Buscar script diretamente (sem verificação de key — endpoint público legacy)
+        const { data: script, error } = await supabase
+            .from('protected_scripts')
+            .select('script_obfuscated, script_content, is_active')
+            .eq('id', scriptId)
+            .single();
+
+        if (error || !script || script.is_active === false) {
+            return new Response('-- Script não encontrado ou desativado.', { status: 404 });
         }
 
-        const scriptContent = await fetchResponse.text();
+        // Priorizar script ofuscado, fallback para texto puro
+        const content = script.script_obfuscated || script.script_content || '-- Script vazio';
 
-        // Retorna o conteúdo do script em texto plano
-        return new Response(scriptContent, {
+        return new Response(content, {
             status: 200,
             headers: {
                 'Content-Type': 'text/plain; charset=utf-8',
@@ -42,7 +59,7 @@ export default async function handler(request: Request) {
         });
 
     } catch (error) {
-        console.error('Erro na Fetch:', error);
+        console.error('[Exec] Erro:', error);
         return new Response('-- Ocorreu um erro interno no servidor ao obter o script.', { status: 500 });
     }
 }

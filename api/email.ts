@@ -305,7 +305,7 @@ export default async function handler(request: Request) {
 
         const adminMailOptions = {
             from: smtpUser,
-            to: 'slenderyt9@gmail.com', // Always goes to the owner
+            to: process.env.ADMIN_EMAIL || 'slenderyt9@gmail.com',
             subject: `[SlenderHub] Nova Compra via ${method.toUpperCase()}!`,
             text: `Olá Admin!\n\nUma nova compra acabou de ser iniciada.\n\nDetalhes:\nComprador: ${customerName}\nE-mail de Contato: ${contactEmail}\nValor Total: $${totalValue}\nMétodo: ${method}\n\nItens Comprados:\n${itemsList}\n\nEntre no dashboard ou confira o chat para validar o pagamento e liberar o pedido.`
         };

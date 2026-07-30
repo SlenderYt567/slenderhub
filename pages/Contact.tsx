@@ -24,14 +24,14 @@ const Contact: React.FC = () => {
         </a>
 
         <a 
-          href="mailto:slenderyt9@gmail.com"
+          href="mailto:contato@slenderhub.shop"
           className="group flex flex-col items-center rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center transition hover:border-purple-500 hover:bg-slate-800"
         >
             <div className="mb-4 rounded-full bg-purple-500/10 p-4 text-purple-500 group-hover:bg-purple-500 group-hover:text-white transition-colors">
                 <Mail className="h-8 w-8" />
             </div>
             <h3 className="text-xl font-bold text-white">Email Support</h3>
-            <p className="mt-2 text-sm text-gray-400">slenderyt9@gmail.com</p>
+            <p className="mt-2 text-sm text-gray-400">contato@slenderhub.shop</p>
         </a>
       </div>
 

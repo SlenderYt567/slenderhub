@@ -39,8 +39,8 @@ const Checkout: React.FC = () => {
     const [contactEmail, setContactEmail] = useState(user?.email || '');
     const [emailError, setEmailError] = useState(false);
 
-    // Specific Pix Key
-    const pixCode = "c8e4e850-c45d-4660-a2f1-44d8cf3aaf0f";
+    // Specific Pix Key (configure via env var ou fallback)
+    const pixCode = import.meta.env.VITE_PIX_KEY || "c8e4e850-c45d-4660-a2f1-44d8cf3aaf0f";
 
     useEffect(() => {
         if (!isAuthenticated) {

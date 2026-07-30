@@ -138,6 +138,29 @@ const ScriptManager: React.FC = () => {
     }
   };
 
+  const handleObfuscateScript = async (scriptId: string) => {
+    try {
+      setSaving(true);
+      const response = await fetch('/api/scripts/obfuscate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scriptId, ownerId: user?.id })
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        alert(`Script obfuscated successfully! New version: ${data.version}`);
+        await fetchScripts();
+        setEditingScript(null);
+      } else {
+        alert(data.error || 'Failed to obfuscate script.');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error occurred during obfuscation.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const copyLoaderSnippet = async (scriptId: string) => {
     const snippet = [
       '_G.SlenderKey = "YOUR_KEY_HERE"',
@@ -191,6 +214,13 @@ const ScriptManager: React.FC = () => {
               <div className="flex gap-2">
                 <button onClick={() => setEditingScript(null)} className="rounded-lg bg-slate-800 px-4 py-2 text-sm">
                   Cancel
+                </button>
+                <button
+                  onClick={() => void handleObfuscateScript(editingScript.id)}
+                  disabled={saving}
+                  className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold shadow-lg shadow-indigo-500/20 transition-colors hover:bg-indigo-500 disabled:opacity-50"
+                >
+                  🔒 Obfuscate Code
                 </button>
                 <button
                   onClick={handleUpdateScript}

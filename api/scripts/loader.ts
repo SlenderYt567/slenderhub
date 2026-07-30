@@ -1,114 +1,135 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://pypfcdczatmsnqjuggiq.supabase.co';
-const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_f6NUOpZVZwHxqe0Meivd-w_7zs3cj4b';
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const RPC_TIMEOUT_MS = 12000;
+
+function sanitizeLuaString(s: string | null | undefined): string {
+    if (!s) return '';
+    return s
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"')
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '\\r')
+        .replace(/\t/g, '\\t')
+        .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '');
+}
+
+function escapeLuaComment(s: string): string {
+    return (s || '').replace(/[\n\r"]/g, ' ').slice(0, 200);
+}
 
 export default async function handler(req: any, res: any) {
     const sendLua = (body: string) => {
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
         return res.status(200).send(body);
     };
 
-    if (req.method !== 'GET') {
-        return sendLua('warn("Method Not Allowed");');
+    if (req.method !== 'GET') return sendLua('warn("Method Not Allowed");');
+
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+        return sendLua('warn("Loader configuration error. Contact support.");');
     }
 
-    if (!supabaseKey) {
-        return sendLua('warn("Server Config Error: Missing API Key");');
-    }
-
-    const key = req.query?.key;
-    const hwid = req.query?.hwid;
-    const scriptId = req.query?.script_id || req.query?.scriptId;
+    const key = (req.query?.key || '').trim();
+    const hwid = (req.query?.hwid || '').trim();
+    const scriptId = req.query?.script_id || req.query?.scriptId || '';
 
     if (!key || !hwid) {
-        return sendLua('warn("Authentication Error: Key and HWID are required.");');
+        return sendLua('warn("SlenderHub: Key and HWID are required.");');
     }
 
-    const ipAddress = req.headers?.['cf-connecting-ip'] || req.headers?.['x-forwarded-for'] || 'Unknown IP';
+    if (!scriptId) {
+        return sendLua('warn("SlenderHub: script_id is required.");');
+    }
 
     try {
-        const supabase = createClient(supabaseUrl, supabaseKey, {
-            auth: {
-                autoRefreshToken: false,
-                persistSession: false,
-                detectSessionInUrl: false
-            }
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+            auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false }
         });
 
-        const rpcPromise = supabase.rpc('validate_and_get_script', {
-            p_key_string: key,
+        // Hash of key
+        const { data: hashData } = await supabase.rpc('hash_license_key', { p_key_string: key });
+        if (!hashData) return sendLua('warn("SlenderHub: Encryption error");');
+        const keyHash = hashData;
+
+        // Validate and retrieve script
+        const rpcPromise = supabase.rpc('validate_and_get_script_v2', {
+            p_key_hash: keyHash,
             p_hwid: hwid,
-            p_ip_address: Array.isArray(ipAddress) ? ipAddress[0] : ipAddress
+            p_script_id: scriptId,
+            p_ip_address: req.headers?.['cf-connecting-ip'] || req.headers?.['x-forwarded-for'] || 'unknown'
         });
 
         const timeoutPromise = new Promise<never>((_, reject) => {
-            setTimeout(() => reject(new Error(`validate_and_get_script timed out after ${RPC_TIMEOUT_MS}ms`)), RPC_TIMEOUT_MS);
+            setTimeout(() => reject(new Error('validate timed out')), RPC_TIMEOUT_MS);
         });
 
         const { data, error } = await Promise.race([rpcPromise, timeoutPromise]);
 
-        if (error) {
-            return sendLua(`warn("Database Error: ${error.message}");`);
+        if (error || !data?.success) {
+            const errMsg = escapeLuaComment(data?.error || error?.message || 'Verification failed');
+            return sendLua(`
+warn("SlenderHub: ${errMsg}")
+local p = game:GetService("Players").LocalPlayer
+if p then p:Kick("SlenderHub: ${errMsg}") end
+`);
         }
 
-        if (data && data.success) {
-            let secondsLeft = -1;
-            if (data.expires_at) {
-                secondsLeft = Math.floor((new Date(data.expires_at).getTime() - Date.now()) / 1000);
-            }
+        let secondsLeft = -1;
+        if (data.expires_at) {
+            secondsLeft = Math.floor((new Date(data.expires_at).getTime() - Date.now()) / 1000);
+        }
 
-            let scriptContent = data.script_content;
-            let scriptName = data.script_name || 'Protected Script';
+        const safeName = sanitizeLuaString(data.script_name || 'Protected Script');
+        const safeTier = sanitizeLuaString(data.tier || 'basic');
+        const execCount = Math.max(0, parseInt(data.total_executions) || 1);
+        const scriptVersion = parseInt(data.script_version) || 1;
+        const checksum = sanitizeLuaString(data.script_checksum || '');
 
-            if ((!scriptContent || !String(scriptContent).trim()) && scriptId) {
-                const { data: scriptRow, error: scriptError } = await supabase
-                    .from('protected_scripts')
-                    .select('name, script_content, is_active')
-                    .eq('id', scriptId)
-                    .single();
+        const scriptHeader = `
+-- [SlenderHub Protected Environment v2]
+-- !! NÃO EDITE ESTA SEÇÃO — ela é verificada pelo servidor !!
+do
+    local env = getgenv()
+    env.SLH_IsPremium = ${safeTier === 'premium' || safeTier === 'lifetime' ? 'true' : 'false'}
+    env.SLH_ScriptName = "${safeName}"
+    env.SLH_ScriptVersion = ${scriptVersion}
+    env.SLH_TotalExecs = ${execCount}
+    env.SLH_SecondsLeft = ${secondsLeft}
+    env.SLH_Tier = "${safeTier}"
+    env.SLH_Checksum = "${checksum}"
+    
+    -- Freeze to prevent runtime modifications
+    if not env.SLH_Frozen then
+        local mt = getrawmetatable(game)
+        if mt then
+            local oldIndex = mt.__index
+            local oldNewIndex = mt.__newindex
+            mt.__newindex = function(t, k, v)
+                if typeof(k) == "string" and k:sub(1, 4) == "SLH_" then
+                    return
+                end
+                return oldNewIndex and oldNewIndex(t, k, v) or rawset(t, k, v)
+            end
+        end
+        env.SLH_Frozen = true
+    end
+end
 
-                if (scriptError) {
-                    return sendLua(`warn("SlenderHub Gateway: Script_Not_Found");`);
-                }
-
-                if (scriptRow?.is_active === false) {
-                    return sendLua(`warn("SlenderHub Gateway: Script_Disabled");`);
-                }
-
-                scriptContent = scriptRow?.script_content;
-                scriptName = scriptRow?.name || scriptName;
-            }
-
-            const scriptHeader = `
--- [SlenderHub Protected Environment]
-getgenv().LRM_IsUserPremium = ${data.tier === 'premium' || data.tier === 'lifetime' ? 'true' : 'false'};
-getgenv().LRM_ScriptName = "${scriptName}";
-getgenv().LRM_TotalExecutions = ${data.total_executions || 1};
-getgenv().LRM_SecondsLeft = ${secondsLeft};
-getgenv().LRM_UserNote = "${data.note || ''}";
-
+-- Script ID: ${sanitizeLuaString(scriptId)}
 `;
 
-            if (!scriptContent || !String(scriptContent).trim()) {
-                return sendLua(scriptHeader + '-- Global Key active, but no script assigned');
-            }
-
-            return sendLua(scriptHeader + scriptContent);
+        if (!data.script_content || !String(data.script_content).trim()) {
+            return sendLua(scriptHeader + '\n-- No script content assigned to this key.');
         }
 
-        const errorMessage = data?.error || 'Unknown Error';
-        return sendLua(`
-warn("SlenderHub Gateway: ${errorMessage}")
-local Players = game:GetService("Players")
-local player = Players and Players.LocalPlayer
-if player then
-    player:Kick("SlenderHub: ${errorMessage}")
-end
-`);
+        return sendLua(scriptHeader + '\n' + data.script_content);
+
     } catch (err: any) {
-        return sendLua(`warn("Internal Server Error: ${err.message}");`);
+        console.error('[Loader] Error:', err);
+        return sendLua('warn("SlenderHub: Internal server error. Please try again.");');
     }
 }

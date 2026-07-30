@@ -1,11 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
+import { createHash, randomBytes } from 'crypto';
 
-const supabaseUrl = process.env.SUPABASE_URL || 'https://pypfcdczatmsnqjuggiq.supabase.co';
+const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const generateKey = (prefix: string = 'SLENDER') => {
-    const randomPart = () => Math.random().toString(36).substring(2, 6).toUpperCase();
-    return `${prefix}-${randomPart()}-${randomPart()}-${randomPart()}`;
+if (!supabaseUrl || !supabaseKey) {
+    throw new Error('[Claim] Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in environment');
+}
+
+const generateKey = (prefix: string = 'SLENDER'): string => {
+    const part1 = randomBytes(3).toString('hex').toUpperCase();
+    const part2 = randomBytes(3).toString('hex').toUpperCase();
+    const part3 = randomBytes(3).toString('hex').toUpperCase();
+    return `${prefix}-${part1}-${part2}-${part3}`;
 };
 
 const getClaimMarker = (claimToken: unknown) => {
@@ -23,6 +30,36 @@ export default async function handler(req: any, res: any) {
     }
 
     try {
+        // =============================================
+        // VERIFICAR AUTENTICAÇÃO
+        // =============================================
+        const authHeader = req.headers.authorization || '';
+        let authenticatedUserId: string | null = null;
+
+        if (authHeader.startsWith('Bearer ')) {
+            const token = authHeader.slice(7);
+            // Criar client com o token do usuário para verificar
+            const userClient = createClient(supabaseUrl, token, {
+                auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false }
+            });
+            const { data: { user }, error: authError } = await userClient.auth.getUser();
+            if (!authError && user) {
+                authenticatedUserId = user.id;
+            }
+        }
+
+        // Fallback: verificar cookie de sessão (Vercel/Next.js)
+        if (!authenticatedUserId) {
+            const cookieSupabase = createClient(supabaseUrl, supabaseKey, {
+                auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+                global: { headers: { cookie: req.headers.cookie || '' } }
+            });
+            const { data: { user } } = await cookieSupabase.auth.getUser();
+            if (user) {
+                authenticatedUserId = user.id;
+            }
+        }
+
         const {
             ownerId,
             scriptId,
@@ -30,11 +67,25 @@ export default async function handler(req: any, res: any) {
             prefix,
             note,
             claimToken,
+            tier,
+            gatewayToken,
         } = req.body || {};
 
         if (!ownerId) {
             return res.status(400).json({ success: false, error: 'ownerId is required' });
         }
+
+        // =============================================
+        // VALIDAR QUE O CHAMADOR É O PROPRIETÁRIO
+        // =============================================
+        if (authenticatedUserId && authenticatedUserId !== ownerId) {
+            return res.status(403).json({ success: false, error: 'Unauthorized: you can only claim keys for yourself' });
+        }
+
+        // Se não conseguiu autenticar, ainda permitir (para claim links públicos)
+        // mas apenas se não houver ownerId diferente do autenticado
+        // Nota: Idealmente todos os claims deveriam exigir auth,
+        // mas claim links são compartilhados publicamente.
 
         const supabase = createClient(supabaseUrl, supabaseKey, {
             auth: {
@@ -65,6 +116,24 @@ export default async function handler(req: any, res: any) {
             if (scriptError || !scriptData) {
                 return res.status(404).json({ success: false, error: 'Script not found for this developer' });
             }
+        }
+
+        // =============================================
+        // RATE LIMITING: Máx 10 keys por minuto por owner
+        // =============================================
+        const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
+        const { count: recentCount, error: countError } = await supabase
+            .from('license_keys')
+            .select('*', { count: 'exact', head: true })
+            .eq('owner_id', ownerId)
+            .gte('created_at', oneMinuteAgo);
+
+        if (countError) {
+            throw countError;
+        }
+
+        if (recentCount && recentCount >= 10) {
+            return res.status(429).json({ success: false, error: 'Rate limit: too many keys generated recently. Wait a moment.' });
         }
 
         const nowIso = new Date().toISOString();
@@ -102,22 +171,23 @@ export default async function handler(req: any, res: any) {
         }
 
         const activeLimitFilter = `expires_at.is.null,expires_at.gt.${nowIso}`;
-        const { count, error: countError } = await supabase
+        const { count: totalCount, error: totalCountError } = await supabase
             .from('license_keys')
             .select('*', { count: 'exact', head: true })
             .eq('owner_id', ownerId)
             .or(activeLimitFilter);
 
-        if (countError) {
-            throw countError;
+        if (totalCountError) {
+            throw totalCountError;
         }
 
-        if (count && profile.dev_key_limit && count >= profile.dev_key_limit) {
+        if (totalCount && profile.dev_key_limit && totalCount >= profile.dev_key_limit) {
             return res.status(403).json({ success: false, error: 'Developer key limit reached' });
         }
 
         const safeDurationDays = Number.isFinite(Number(durationDays)) ? Math.max(0, Number(durationDays)) : 1;
         const keyString = generateKey((prefix || 'SLENDER').toString().replace(/[^A-Z0-9_-]/gi, '').slice(0, 20) || 'SLENDER');
+        const keyHash = createHash('sha256').update(keyString).digest('hex');
         const expiresAt = safeDurationDays > 0
             ? new Date(Date.now() + safeDurationDays * 24 * 60 * 60 * 1000).toISOString()
             : null;
@@ -127,9 +197,11 @@ export default async function handler(req: any, res: any) {
             .insert({
                 owner_id: ownerId,
                 key_string: keyString,
+                key_hash: keyHash,
                 expires_at: expiresAt,
                 note: storedNote,
                 script_id: scriptId || null,
+                tier: tier || 'basic'
             })
             .select('id, key_string, expires_at, script_id')
             .single();

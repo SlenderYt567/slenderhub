@@ -7,53 +7,88 @@ const apiDevPlugin = () => ({
     name: 'api-dev-plugin',
     configureServer(server: any) {
         server.middlewares.use(async (req: any, res: any, next: any) => {
-            if (req.url && req.url.startsWith('/api/')) {
-                const urlPath = req.url.split('?')[0];
-                let relativeFilePath = `.${urlPath}.ts`;
-                
-                // Tratar se for pasta index ou se o arquivo existir
-                let filePath = path.resolve(__dirname, relativeFilePath);
-                if (!fs.existsSync(filePath) && fs.existsSync(path.resolve(__dirname, `.${urlPath}/index.ts`))) {
+            if (!req.url?.startsWith('/api/')) return next();
+
+            const urlPath = req.url.split('?')[0];
+            let relativeFilePath = `.${urlPath}.ts`;
+            let filePath = path.resolve(__dirname, relativeFilePath);
+
+            if (!fs.existsSync(filePath)) {
+                const indexPath = path.resolve(__dirname, `.${urlPath}/index.ts`);
+                if (fs.existsSync(indexPath)) {
                     relativeFilePath = `.${urlPath}/index.ts`;
-                    filePath = path.resolve(__dirname, relativeFilePath);
-                }
-
-                if (fs.existsSync(filePath)) {
-                    try {
-                        let body = '';
-                        req.on('data', (chunk: any) => body += chunk);
-                        await new Promise(resolve => req.on('end', resolve));
-
-                        const handlerModule = await server.ssrLoadModule(relativeFilePath);
-                        const handler = handlerModule.default;
-
-                        if (handler) {
-                            const fetchRequest = new Request(`http://localhost:3000${req.url}`, {
-                                method: req.method,
-                                headers: req.headers,
-                                body: ['POST', 'PUT', 'PATCH'].includes(req.method) ? body : undefined
-                            });
-
-                            const response = await handler(fetchRequest);
-                            res.statusCode = response.status;
-
-                            response.headers.forEach((val: string, key: string) => {
-                                res.setHeader(key, val);
-                            });
-
-                            const responseText = await response.text();
-                            res.end(responseText);
-                            return;
-                        }
-                    } catch (err: any) {
-                        console.error('[API Dev Plugin Error]:', err);
-                        res.statusCode = 500;
-                        res.setHeader('Content-Type', 'application/json');
-                        res.end(JSON.stringify({ error: err.message || 'Erro no servidor de API local' }));
-                        return;
-                    }
+                    filePath = indexPath;
+                } else {
+                    return next();
                 }
             }
+
+            try {
+                // Parse body
+                let rawBody = '';
+                await new Promise<void>((resolve) => {
+                    req.on('data', (chunk: any) => (rawBody += chunk));
+                    req.on('end', resolve);
+                });
+
+                // Parse query params
+                const queryString = req.url.includes('?') ? req.url.split('?')[1] : '';
+                const query: Record<string, string> = {};
+                new URLSearchParams(queryString).forEach((val, key) => { query[key] = val; });
+
+                // Parse JSON body
+                let body: any = {};
+                if (rawBody) {
+                    try { body = JSON.parse(rawBody); } catch { body = {}; }
+                }
+
+                // Build Express-style req/res shims
+                const expressReq = {
+                    method: req.method,
+                    url: req.url,
+                    headers: req.headers,
+                    query,
+                    body,
+                };
+
+                const headers: Record<string, string> = {};
+                const expressRes = {
+                    statusCode: 200,
+                    status(code: number) { this.statusCode = code; return this; },
+                    setHeader(k: string, v: string) { headers[k] = v; },
+                    json(data: any) {
+                        res.statusCode = this.statusCode;
+                        res.setHeader('Content-Type', 'application/json');
+                        Object.entries(headers).forEach(([k, v]) => res.setHeader(k, v));
+                        res.end(JSON.stringify(data));
+                    },
+                    send(data: any) {
+                        res.statusCode = this.statusCode;
+                        Object.entries(headers).forEach(([k, v]) => res.setHeader(k, v));
+                        res.end(typeof data === 'string' ? data : JSON.stringify(data));
+                    },
+                    end(data: any) {
+                        res.statusCode = this.statusCode;
+                        Object.entries(headers).forEach(([k, v]) => res.setHeader(k, v));
+                        res.end(data);
+                    },
+                };
+
+                const handlerModule = await server.ssrLoadModule(relativeFilePath);
+                const handler = handlerModule.default;
+
+                if (handler) {
+                    await handler(expressReq, expressRes);
+                    return;
+                }
+            } catch (err: any) {
+                console.error('[API Dev Plugin Error]:', err);
+                res.statusCode = 500;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: err.message || 'Internal API error' }));
+                return;
+            }
+
             next();
         });
     }

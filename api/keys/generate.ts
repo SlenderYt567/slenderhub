@@ -1,11 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
+import { createHash, randomBytes } from 'crypto';
 
-const supabaseUrl = process.env.SUPABASE_URL || 'https://pypfcdczatmsnqjuggiq.supabase.co';
+const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const generateKey = (prefix: string = 'SLENDER') => {
-    const randomPart = () => Math.random().toString(36).substring(2, 6).toUpperCase();
-    return `${prefix}-${randomPart()}-${randomPart()}-${randomPart()}`;
+if (!supabaseUrl || !supabaseKey) {
+    throw new Error('[Generate] Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in environment');
+}
+
+const generateKey = (prefix: string = 'SLENDER'): string => {
+    const part1 = randomBytes(3).toString('hex').toUpperCase();
+    const part2 = randomBytes(3).toString('hex').toUpperCase();
+    const part3 = randomBytes(3).toString('hex').toUpperCase();
+    return `${prefix}-${part1}-${part2}-${part3}`;
 };
 
 export default async function handler(req: any, res: any) {
@@ -18,7 +25,7 @@ export default async function handler(req: any, res: any) {
     }
 
     try {
-        const { userId, prefix, durationDays, note, scriptId } = req.body || {};
+        const { userId, prefix, durationDays, note, scriptId, tier } = req.body || {};
 
         if (!userId) {
             return res.status(400).json({ error: 'User ID is required' });
@@ -56,6 +63,7 @@ export default async function handler(req: any, res: any) {
         }
 
         const keyString = generateKey(prefix);
+        const keyHash = createHash('sha256').update(keyString).digest('hex');
         const expiresAt = durationDays ? new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString() : null;
 
         const { data: newKey, error: genError } = await supabase
@@ -63,9 +71,11 @@ export default async function handler(req: any, res: any) {
             .insert({
                 owner_id: userId,
                 key_string: keyString,
+                key_hash: keyHash,
                 expires_at: expiresAt,
                 note: note || 'Default Key',
-                script_id: scriptId || null
+                script_id: scriptId || null,
+                tier: tier || 'basic'
             })
             .select()
             .single();

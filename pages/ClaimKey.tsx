@@ -36,7 +36,7 @@ const ClaimKey: React.FC = () => {
   const note = searchParams.get('note') || 'Gateway claim';
   const label = searchParams.get('label') || 'Custom Key';
   const durationDays = Number(searchParams.get('duration') || '1');
-  const isCompleted = searchParams.get('step') === 'completed';
+  const gatewayToken = searchParams.get('gateway_token') || '';
 
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState(false);
@@ -52,6 +52,10 @@ const ClaimKey: React.FC = () => {
   const [socialTimer, setSocialTimer] = useState(0);
   const [verifyingType, setVerifyingType] = useState<'youtube' | 'discord' | 'monetag' | null>(null);
 
+  // Server token state
+  const [serverToken, setServerToken] = useState<string | null>(gatewayToken || null);
+  const [tokenLoading, setTokenLoading] = useState(false);
+
   const claimStorageKey = useMemo(() => {
     const rawKey = `${ownerId}|${scriptId || 'global'}|${durationDays}|${prefix}|${note}`;
     return `slenderhub_claim_${btoa(unescape(encodeURIComponent(rawKey))).replace(/=+$/g, '')}`;
@@ -63,17 +67,9 @@ const ClaimKey: React.FC = () => {
       setLoading(false);
       return;
     }
-
     void fetchClaimConfig();
+    // NOTA: Removido o auto-verify por ?step=completed — agora usa token server-side
   }, [ownerId, scriptId]);
-
-  useEffect(() => {
-    if (isCompleted) {
-      setYoutubeVerified(true);
-      setDiscordVerified(true);
-      setMonetagVerified(true);
-    }
-  }, [isCompleted]);
 
   const fetchClaimConfig = async () => {
     try {
@@ -124,20 +120,46 @@ const ClaimKey: React.FC = () => {
           setVerifyingType(null);
           return 0;
         }
-
         return prev - 1;
       });
     }, 1000);
   };
 
+  const handleRequestGatewayToken = async () => {
+    if (tokenLoading) return;
+    setTokenLoading(true);
+    setError(null);
+    try {
+      // Precisamos de uma key_string para gerar o token — mas aqui estamos gerando UMA NOVA key
+      // Então primeiro solicitamos o token genérico com um placeholder
+      const response = await fetch('/api/gateway/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          key_string: `claim:${ownerId}:${scriptId || 'global'}`,
+          steps_completed: ['youtube', 'discord', 'monetag'] 
+        })
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success || !data.token) {
+        throw new Error(data.error || 'Failed to generate gateway token');
+      }
+      setServerToken(data.token);
+    } catch (err: any) {
+      setError(err.message || 'Failed to generate gateway token.');
+    } finally {
+      setTokenLoading(false);
+    }
+  };
+
   const claimLinkTarget = useMemo(() => {
     const url = new URL(`${window.location.origin}${window.location.pathname}`);
-    url.hash = `#/claim?owner=${encodeURIComponent(ownerId)}${scriptId ? `&script=${encodeURIComponent(scriptId)}` : ''}&duration=${encodeURIComponent(String(durationDays))}&prefix=${encodeURIComponent(prefix)}&note=${encodeURIComponent(note)}&step=completed`;
+    url.hash = `#/claim?owner=${encodeURIComponent(ownerId)}${scriptId ? `&script=${encodeURIComponent(scriptId)}` : ''}&duration=${encodeURIComponent(String(durationDays))}&prefix=${encodeURIComponent(prefix)}&note=${encodeURIComponent(note)}&gateway_token=${encodeURIComponent(serverToken || '')}`;
     return url.toString();
-  }, [durationDays, note, ownerId, prefix, scriptId]);
+  }, [durationDays, note, ownerId, prefix, scriptId, serverToken]);
 
   const allVerified = youtubeVerified && discordVerified && monetagVerified;
-  const readyToClaim = isCompleted || (!gatewayConfig?.shortener_url && allVerified);
+  const readyToClaim = !!serverToken || (!gatewayConfig?.shortener_url && allVerified);
 
   const handleClaimKey = async () => {
     try {
@@ -160,6 +182,7 @@ const ClaimKey: React.FC = () => {
           prefix,
           note,
           claimToken,
+          gatewayToken: serverToken,
         }),
       });
 
@@ -177,7 +200,7 @@ const ClaimKey: React.FC = () => {
   };
 
   const handleUnlockFlow = () => {
-    if (gatewayConfig?.shortener_url && !isCompleted) {
+    if (gatewayConfig?.shortener_url && !serverToken) {
       const targetUrl = claimLinkTarget;
       const base64Url = btoa(targetUrl);
       const linkvertiseUserId = (gatewayConfig.shortener_url || '').replace(/[^0-9]/g, '');
@@ -361,10 +384,22 @@ const ClaimKey: React.FC = () => {
                 )
               )}
 
-              {(allVerified || gatewayConfig?.shortener_url) && (
+              {/* Show gateway token request button */}
+              {allVerified && !serverToken && (
+                <button
+                  onClick={handleRequestGatewayToken}
+                  disabled={tokenLoading}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 py-4 font-bold transition-all hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50"
+                >
+                  {tokenLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Key className="h-5 w-5" />}
+                  {tokenLoading ? 'Validating...' : 'Continue to Claim'}
+                </button>
+              )}
+
+              {allVerified && serverToken && (
                 <button
                   onClick={readyToClaim ? () => void handleClaimKey() : handleUnlockFlow}
-                  disabled={claiming || (!allVerified && !gatewayConfig?.shortener_url)}
+                  disabled={claiming}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 py-4 font-bold transition-all hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50"
                 >
                   {claiming ? <Loader2 className="h-5 w-5 animate-spin" /> : <Key className="h-5 w-5" />}
@@ -373,6 +408,17 @@ const ClaimKey: React.FC = () => {
                     : readyToClaim
                       ? 'Get a New Key'
                       : 'Continue to Ad (Get Key)'}
+                </button>
+              )}
+
+              {/* If shortener is set but social steps aren't done yet, show a disabled hint */}
+              {!allVerified && gatewayConfig?.shortener_url && (
+                <button
+                  disabled
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600/40 to-indigo-600/40 py-4 font-bold opacity-50 cursor-not-allowed"
+                >
+                  <Key className="h-5 w-5" />
+                  Complete steps above first
                 </button>
               )}
 

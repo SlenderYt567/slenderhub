@@ -157,6 +157,10 @@ const DeveloperPanel: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
+  // ── Killswitch state ──
+  const [killedScripts, setKilledScripts] = useState<Set<string>>(new Set());
+  const [killswitching, setKillswitching] = useState(false);
+
   // ── Key generation modal ──
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newKeyConfig, setNewKeyConfig] = useState({
@@ -196,6 +200,24 @@ const DeveloperPanel: React.FC = () => {
   const [luaSelectedScript, setLuaSelectedScript] = useState('');
   const [copiedLua, setCopiedLua] = useState(false);
 
+  // ── Verification Logs state ──
+  const [isLogsModalOpen, setIsLogsModalOpen] = useState(false);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+
+  useEffect(() => {
+    if (isLogsModalOpen) {
+      setLoadingLogs(true);
+      fetch('/api/keys/verify-logs')
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data)) setLogs(data);
+          setLoadingLogs(false);
+        })
+        .catch(() => setLoadingLogs(false));
+    }
+  }, [isLogsModalOpen]);
+
   // ── Confirm modal ──
   const [confirmState, setConfirmState] = useState<{
     message: string;
@@ -233,7 +255,7 @@ const DeveloperPanel: React.FC = () => {
         { data: profileData, error: profileError },
       ] = await Promise.all([
         supabase.from('license_keys').select('*').eq('owner_id', user.id).order('created_at', { ascending: false }),
-        supabase.from('protected_scripts').select('id, name').eq('owner_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('protected_scripts').select('id, name, killswitch_activated').eq('owner_id', user.id).order('created_at', { ascending: false }),
         supabase.from('profiles').select('shortener_url, discord_url, youtube_url, monetag_url, dev_tier').eq('id', user.id).maybeSingle(),
       ]);
 
@@ -242,7 +264,9 @@ const DeveloperPanel: React.FC = () => {
       if (profileError) throw profileError;
 
       setKeys((keysData as LicenseKeyRecord[]) || []);
-      setScripts((scriptsData as ScriptSummary[]) || []);
+      const fetchedScripts = (scriptsData as any[]) || [];
+      setScripts(fetchedScripts.map((s) => ({ id: s.id, name: s.name })));
+      setKilledScripts(new Set(fetchedScripts.filter((s) => s.killswitch_activated).map((s) => s.id)));
       if (profileData) {
         setGatewayConfig(profileData);
         setDevTier(profileData.dev_tier || 'none');
@@ -251,6 +275,42 @@ const DeveloperPanel: React.FC = () => {
       setError(err.message || 'Failed to load developer data.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Killswitch handler
+  // ─────────────────────────────────────────────────────────────────────────
+
+  const handleKillswitch = async (scriptId: string, activate: boolean) => {
+    if (!user) return;
+    const confirmed = await confirm(
+      activate
+        ? `⚠️ ACTIVATE killswitch for this script? All verifications will be blocked immediately until you restore it.`
+        : `Restore script? Key verifications will work again normally.`,
+      activate ? 'Activate Killswitch' : 'Restore Script',
+      activate
+    );
+    if (!confirmed) return;
+    try {
+      setKillswitching(true);
+      const res = await fetch('/api/scripts/killswitch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scriptId, ownerId: user.id, activate }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      setKilledScripts((prev) => {
+        const next = new Set(prev);
+        if (activate) next.add(scriptId);
+        else next.delete(scriptId);
+        return next;
+      });
+    } catch (err: any) {
+      setError(err.message || 'Killswitch error');
+    } finally {
+      setKillswitching(false);
     }
   };
 
@@ -326,46 +386,111 @@ const DeveloperPanel: React.FC = () => {
 
   const baseUrl = useMemo(() => window.location.origin, []);
   const luaSnippet = useMemo(() => {
-    const scriptParam = luaSelectedScript ? `&script_id=${luaSelectedScript}` : '';
-    return `-- ┌─────────────────────────────────────────────────────┐
--- │  SLENDER HUB — Auto-generated Loader                │
--- │  Copy and paste at the TOP of your script           │
--- └─────────────────────────────────────────────────────┘
-local HttpService  = game:GetService("HttpService")
-local Analytics    = game:GetService("RbxAnalyticsService")
+    const scriptIdParam = luaSelectedScript || 'GLOBAL';
+    return `-- =====================================================
+--  SLENDER HUB — Secure Loader v2
+--  Auto-generated for developer: ${user?.id || 'unknown'}
+--  DO NOT MODIFY THIS SECTION
+-- =====================================================
 
-local VERIFY_URL   = "${baseUrl}/api/keys/verify"
-local KEY_FILE     = "SlenderHubKey.json"
-local LICENSE_KEY  = "PASTE_YOUR_KEY_HERE"  -- Replace with user's key
+local HttpService = game:GetService("HttpService")
+local Analytics = game:GetService("RbxAnalyticsService")
 
+-- Configuration
+local CONFIG = {
+    LOADER_URL    = "${baseUrl}/api/scripts/loader",
+    VERIFY_URL    = "${baseUrl}/api/keys/verify",
+    SCRIPT_ID     = "${scriptIdParam}",
+    AUTO_SAVE_KEY = true,        -- Save key locally for convenience
+    RETRY_DELAY   = 5,           -- Seconds between retries
+    MAX_RETRIES   = 3,           -- Max retries on failure
+}
+
+-- HWID retrieval
 local function getHWID()
-    local ok, id = pcall(function() return Analytics:GetClientId() end)
-    return ok and id or "UNKNOWN"
+    local ok, id = pcall(function()
+        return Analytics:GetClientId()
+    end)
+    return ok and id or "UNKNOWN_HWID_" .. game.JobId
 end
 
-local function verifyKey(licenseKey)
-    local url = VERIFY_URL
-        .. "?key="       .. HttpService:UrlEncode(licenseKey)
-        .. "&hwid="      .. HttpService:UrlEncode(getHWID())
-        .. "${scriptParam}"
-    local ok, raw = pcall(HttpService.GetAsync, HttpService, url)
-    if not ok then warn("[SlenderHub] HTTP request failed:", raw) return false end
-    local ok2, data = pcall(HttpService.JSONDecode, HttpService, raw)
-    if not ok2 or not data then warn("[SlenderHub] JSON parse error") return false end
-    if not data.valid then
-        warn("[SlenderHub] Invalid key:", data.message or "unknown reason")
-        return false
+-- Safe HTTP request
+local function safeRequest(url)
+    local ok, result = pcall(function()
+        return HttpService:GetAsync(url)
+    end)
+    return ok, result
+end
+
+-- Load and execute the protected script
+local function loadProtectedScript(licenseKey)
+    local hwid = getHWID()
+    local url = CONFIG.LOADER_URL 
+        .. "?key="      .. HttpService:UrlEncode(licenseKey)
+        .. "&hwid="     .. HttpService:UrlEncode(hwid)
+        .. "&script_id=" .. CONFIG.SCRIPT_ID
+    
+    for attempt = 1, CONFIG.MAX_RETRIES do
+        local ok, response = safeRequest(url)
+        if ok and response then
+            if response:sub(1, 6) == "warn(\"" then
+                warn("[SlenderHub] " .. response)
+                return false
+            end
+            
+            local loadOk, loadErr = pcall(function()
+                loadstring(response)()
+            end)
+            
+            if loadOk then
+                print("[SlenderHub] ✔ Script loaded successfully")
+                return true
+            else
+                warn("[SlenderHub] Script error: " .. tostring(loadErr))
+                return false
+            end
+        end
+        
+        if attempt < CONFIG.MAX_RETRIES then
+            warn("[SlenderHub] Connection failed, retrying in " .. CONFIG.RETRY_DELAY .. "s...")
+            task.wait(CONFIG.RETRY_DELAY)
+        end
     end
-    print("[SlenderHub] ✔ Authenticated | Tier:", data.tier, "| Expires:", data.expires_at or "Never")
-    return true
+    
+    warn("[SlenderHub] Failed to load script after " .. CONFIG.MAX_RETRIES .. " attempts")
+    return false
 end
 
-if not verifyKey(LICENSE_KEY) then
-    error("[SlenderHub] Access denied. Get a valid key at: ${baseUrl}/#/claim")
+-- Main execution
+local licenseKey = "YOUR_LICENSE_KEY_HERE"  -- ← Replace with actual key
+
+if CONFIG.AUTO_SAVE_KEY then
+    local success, savedKey = pcall(function()
+        return readfile("SlenderHub_Key.txt")
+    end)
+    if success and savedKey and #savedKey > 0 then
+        licenseKey = savedKey
+    end
 end
 
--- ✅ Key is valid — your script starts here`;
-  }, [baseUrl, luaSelectedScript]);
+if not loadProtectedScript(licenseKey) then
+    if CONFIG.AUTO_SAVE_KEY then
+        pcall(function() writefile("SlenderHub_Key.txt", "") end)
+    end
+    
+    warn("====================================")
+    warn("  SLENDER HUB — ACCESS DENIED")
+    warn("  Get a valid key at:")
+    warn("  ${baseUrl}/#/claim")
+    warn("====================================")
+    
+    task.wait(3)
+    local player = game:GetService("Players").LocalPlayer
+    if player then
+        player:Kick("SlenderHub: Invalid or expired key. Get a new key at " .. "${baseUrl}/#/claim")
+    end
+end`;
+  }, [baseUrl, luaSelectedScript, user]);
 
   // ─────────────────────────────────────────────────────────────────────────
   // Claim link
@@ -604,6 +729,13 @@ end
               <Zap className="h-4 w-4" />
               <span>Lua Loader</span>
             </button>
+            <button
+              onClick={() => setIsLogsModalOpen(true)}
+              className="flex items-center space-x-2 rounded-lg border border-indigo-500/30 bg-indigo-600/15 px-4 py-2 font-semibold text-indigo-400 transition-all hover:bg-indigo-600 hover:text-white"
+            >
+              <BarChart2 className="h-4 w-4" />
+              <span>Verify Logs</span>
+            </button>
             <Link
               to="/documentation"
               className="flex items-center space-x-2 rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 transition-colors hover:bg-slate-700"
@@ -663,6 +795,45 @@ end
             </div>
           ))}
         </div>
+
+        {/* ── Killswitch Panel ─────────────────────────────────────────────── */}
+        {scripts.length > 0 && (
+          <div className="mb-8 rounded-2xl border border-red-900/40 bg-red-950/10 p-5">
+            <div className="mb-3 flex items-center gap-2">
+              <span className="text-lg">☠️</span>
+              <h3 className="font-bold text-red-300">Script Killswitch Control</h3>
+              <span className="ml-auto text-xs text-gray-500">Activating a killswitch blocks ALL key verifications for that script instantly</span>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {scripts.map((s) => {
+                const isKilled = killedScripts.has(s.id);
+                return (
+                  <div
+                    key={s.id}
+                    className={`flex items-center gap-3 rounded-xl border px-4 py-2.5 transition-all ${
+                      isKilled
+                        ? 'border-red-500/50 bg-red-500/10'
+                        : 'border-slate-700 bg-slate-900'
+                    }`}
+                  >
+                    <span className="text-sm font-medium text-white">{s.name}</span>
+                    <button
+                      onClick={() => void handleKillswitch(s.id, !isKilled)}
+                      disabled={killswitching}
+                      className={`rounded-lg px-3 py-1 text-xs font-bold transition-colors disabled:opacity-50 ${
+                        isKilled
+                          ? 'bg-green-600 hover:bg-green-500 text-white'
+                          : 'bg-red-600 hover:bg-red-500 text-white'
+                      }`}
+                    >
+                      {isKilled ? '✅ Restore' : '🔴 Kill'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ── Search + Filter bar ────────────────────────────────────────── */}
         <div className="mb-4 flex flex-wrap gap-3">
@@ -1271,6 +1442,75 @@ end
       {/* ═══════════════════════════════════════════════════════════════════
           Confirm Modal (native replacement)
       ════════════════════════════════════════════════════════════════════ */}
+      {isLogsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-4xl max-h-[80vh] rounded-3xl border border-slate-800 bg-[#0f172a] p-8 shadow-2xl overflow-hidden flex flex-col">
+            <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+              <BarChart2 className="h-6 w-6 text-indigo-500" />
+              <span>Verification Logs (Last 100)</span>
+            </h2>
+            <div className="flex-1 overflow-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-700 text-gray-400">
+                    <th className="p-2">Time</th>
+                    <th className="p-2">Key Hash</th>
+                    <th className="p-2">HWID</th>
+                    <th className="p-2">IP</th>
+                    <th className="p-2">Result</th>
+                    <th className="p-2">Reason</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loadingLogs ? (
+                    <tr>
+                      <td colSpan={6} className="p-4 text-center text-gray-500">
+                        Loading logs...
+                      </td>
+                    </tr>
+                  ) : logs.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-4 text-center text-gray-500">
+                        No logs found.
+                      </td>
+                    </tr>
+                  ) : (
+                    logs.map((log: any) => (
+                      <tr key={log.id} className="border-b border-slate-800 hover:bg-slate-800/30">
+                        <td className="p-2 text-gray-400">
+                          {new Date(log.created_at).toLocaleString()}
+                        </td>
+                        <td className="p-2 font-mono text-xs text-indigo-300">
+                          {log.key_hash?.slice(0, 16)}...
+                        </td>
+                        <td className="p-2 font-mono text-xs text-gray-300">
+                          {log.hwid?.slice(0, 20)}...
+                        </td>
+                        <td className="p-2 text-gray-400">{log.ip_address}</td>
+                        <td className="p-2">
+                          {log.success ? (
+                            <span className="text-green-400">✅ OK</span>
+                          ) : (
+                            <span className="text-red-400">❌ FAIL</span>
+                          )}
+                        </td>
+                        <td className="p-2 text-gray-500">{log.reason}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <button
+              onClick={() => setIsLogsModalOpen(false)}
+              className="mt-6 w-full rounded-xl bg-slate-800 py-2.5 font-bold transition-colors hover:bg-slate-700"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
       {confirmState && (
         <ConfirmModal
           message={confirmState.message}

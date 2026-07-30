@@ -45,6 +45,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [user, setUser] = useState<User | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
@@ -80,8 +81,21 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       });
   }, []);
 
-  // Admin Check
-  const isAdmin = user?.email === 'slenderyt9@gmail.com';
+  // Fetch Admin state when user changes
+  useEffect(() => {
+    if (user) {
+      void supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          setIsAdmin(data?.is_admin === true);
+        });
+    } else {
+      setIsAdmin(false);
+    }
+  }, [user]);
 
   const formatPrice = (priceInUsd: number) => {
     if (currency === 'BRL') {

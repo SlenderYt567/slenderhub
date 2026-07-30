@@ -6,7 +6,7 @@ import { Shield, ExternalLink, Youtube, Disc as Discord, Key, Check, Loader2, Al
 const UnlockKey: React.FC = () => {
     const { key } = useParams<{ key: string }>();
     const [searchParams] = useSearchParams();
-    const isCompleted = searchParams.get('step') === 'completed';
+    const gatewayToken = searchParams.get('gateway_token');
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -20,32 +20,45 @@ const UnlockKey: React.FC = () => {
     const [socialTimer, setSocialTimer] = useState(0);
     const [verifyingType, setVerifyingType] = useState<'youtube' | 'discord' | 'monetag' | null>(null);
 
+    // Server token state
+    const [serverToken, setServerToken] = useState<string | null>(gatewayToken || null);
+    const [isTokenValid, setIsTokenValid] = useState(false);
+    const [tokenLoading, setTokenLoading] = useState(false);
+
     useEffect(() => {
         if (key) {
             fetchGatewayInfo();
         }
-        
-        // Listen for verification from another tab (verify-gateway page)
-        const handleStorageChange = () => {
-            const isVerified = localStorage.getItem('slender_gateway_verified');
-            if (isVerified === 'true') {
-                window.location.href = `${window.location.origin}${window.location.pathname}#/unlock/${key}?step=completed`;
-                localStorage.removeItem('slender_gateway_verified');
-            }
-        };
-
-        window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
+        // NOTA: Removido o listener de localStorage — agora usa token server-side
     }, [key]);
 
-    // If it comes back from shortener, auto-verify social steps to avoid annoying the user again
+    // Se chegou com gateway_token na URL, validar
     useEffect(() => {
-        if (isCompleted) {
-            setYoutubeVerified(true);
-            setDiscordVerified(true);
-            setMonetagVerified(true);
+        if (gatewayToken) {
+            validateToken(gatewayToken);
         }
-    }, [isCompleted]);
+    }, [gatewayToken]);
+
+    const validateToken = async (token: string) => {
+        // Token auto-contido: base64(key_hash:exp:hmac)
+        try {
+            const decoded = atob(token);
+            const parts = decoded.split(':');
+            if (parts.length !== 3) {
+                setIsTokenValid(false);
+                return;
+            }
+            const [, expStr, hmac] = parts;
+            const exp = parseInt(expStr, 10);
+            if (Date.now() / 1000 > exp) {
+                setIsTokenValid(false);
+                return;
+            }
+            setIsTokenValid(true);
+        } catch {
+            setIsTokenValid(false);
+        }
+    };
 
     const fetchGatewayInfo = async () => {
         try {
@@ -63,8 +76,7 @@ const UnlockKey: React.FC = () => {
             if (!data.youtube_url) setYoutubeVerified(true);
             if (!data.discord_url) setDiscordVerified(true);
             if (!data.monetag_url) setMonetagVerified(true);
-            else setMonetagVerified(false); 
-
+            else setMonetagVerified(false);
 
         } catch (err: any) {
             setError(err.message);
@@ -95,25 +107,45 @@ const UnlockKey: React.FC = () => {
         }, 1000);
     };
 
+    const handleRequestGatewayToken = async () => {
+        if (tokenLoading || !key) return;
+        setTokenLoading(true);
+        try {
+            const response = await fetch('/api/gateway/complete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key_string: key, steps_completed: ['youtube', 'discord', 'monetag'] })
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success || !data.token) {
+                throw new Error(data.error || 'Failed to generate gateway token');
+            }
+            setServerToken(data.token);
+            setIsTokenValid(true);
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setTokenLoading(false);
+        }
+    };
+
     const handleGetFinalKey = () => {
-        if (gatewayConfig.shortener_url && !isCompleted) {
-            // Se o desenvolvedor colocou um ID do Linkvertise, geramos o link dinâmico para essa chave específica
-            const targetUrl = `${window.location.origin}${window.location.pathname}#/unlock/${key}?step=completed`;
-            const base64Url = btoa(targetUrl); // Linkvertise requer base64 do nosso link final
-            
-            // Linkvertise Dynamic URL format: https://link-to.net/{userId}/dynamic?r={base64_encoded_url}
+        if (gatewayConfig?.shortener_url && !isTokenValid) {
+            // Se o desenvolvedor colocou um shortener, redireciona e volta com token
+            const targetUrl = `${window.location.origin}${window.location.pathname}#/unlock/${key}?gateway_token=PLACEHOLDER`;
+            // Nota: o fluxo real do shortener deve redirecionar de volta com o token
+            // Por enquanto, após o shortener, o usuário precisa clicar em "Solicitar Token"
+            const base64Url = btoa(targetUrl);
             const linkvertiseUserId = gatewayConfig.shortener_url.replace(/[^0-9]/g, '');
             const shortenerLink = `https://link-to.net/${linkvertiseUserId}/dynamic?r=${base64Url}`;
-
             window.open(shortenerLink, '_blank');
             
-            // Depois de alguns segundos fechamos essa tela ou deixamos o linkvertise trazer ele de volta.
-            // Para garantir que a aba antiga atualize no futuro caso percam, atualizamos com delay.
+            // Aguardar retorno do shortener
             setTimeout(() => {
-                window.location.href = targetUrl;
-            }, 30000); 
+                handleRequestGatewayToken();
+            }, 5000);
         } else {
-             // Already completed or no shortener
+             // Token já validado ou sem shortener
              setCopied(true);
              navigator.clipboard.writeText(key || '');
              setTimeout(() => setCopied(false), 2000);
@@ -141,7 +173,7 @@ const UnlockKey: React.FC = () => {
     }
 
     const allVerified = youtubeVerified && discordVerified && monetagVerified;
-    const showFinalKey = isCompleted || (!gatewayConfig?.shortener_url && allVerified);
+    const showFinalKey = isTokenValid || (!gatewayConfig?.shortener_url && allVerified && serverToken);
 
     return (
         <div className="min-h-screen bg-[#020617] text-white pt-24 pb-12 px-4 flex flex-col items-center">
@@ -254,13 +286,24 @@ const UnlockKey: React.FC = () => {
                                 )
                             )}
 
-                            {allVerified && (
+                            {allVerified && !serverToken && (
+                                <button
+                                    onClick={handleRequestGatewayToken}
+                                    disabled={tokenLoading}
+                                    className="w-full mt-4 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 group disabled:opacity-50"
+                                >
+                                    {tokenLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Key className="w-5 h-5" />}
+                                    {tokenLoading ? 'Validating...' : (gatewayConfig?.shortener_url ? 'Continue to Ad (Get Key)' : 'Unlock Now')}
+                                </button>
+                            )}
+
+                            {allVerified && serverToken && !showFinalKey && (
                                 <button
                                     onClick={handleGetFinalKey}
                                     className="w-full mt-4 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 group"
                                 >
                                     <Key className="w-5 h-5" />
-                                    {gatewayConfig?.shortener_url ? 'Continue to Ad (Get Key)' : 'Unlock Now'}
+                                    {gatewayConfig?.shortener_url ? 'Complete Ad to Reveal Key' : 'Reveal Key'}
                                 </button>
                             )}
                         </div>
