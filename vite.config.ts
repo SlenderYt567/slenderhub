@@ -102,13 +102,24 @@ export default defineConfig(({ mode }) => {
             host: '0.0.0.0',
         },
         plugins: [react(), apiDevPlugin()],
-        define: {
-            'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-            'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
-        },
+        define: {},
         resolve: {
             alias: {
                 '@': path.resolve(__dirname, '.'),
+            }
+        },
+        build: {
+            chunkSizeWarningLimit: 1200,
+            rollupOptions: {
+                output: {
+                    manualChunks: {
+                        vendor: ['react', 'react-dom', 'react-router-dom'],
+                        stripe: ['@stripe/react-stripe-js', '@stripe/stripe-js'],
+                        paypal: ['@paypal/react-paypal-js'],
+                        supabase: ['@supabase/supabase-js'],
+                        icons: ['lucide-react'],
+                    }
+                }
             }
         }
     };

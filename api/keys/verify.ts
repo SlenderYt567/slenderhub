@@ -50,7 +50,13 @@ async function antiBruteForceDelay(success: boolean): Promise<void> {
 }
 
 export default async function handler(req: any, res: any) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    const allowedOrigins = ['https://slenderhub.shop', 'http://localhost:3000', 'http://localhost:5173'];
+    const origin = req.headers?.origin || req.headers?.['x-forwarded-host'];
+    if (origin && allowedOrigins.some((o) => origin.startsWith(o))) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+    } else if (!origin) {
+        res.setHeader('Access-Control-Allow-Origin', 'https://slenderhub.shop');
+    }
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Cache-Control', 'no-store');

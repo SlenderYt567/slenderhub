@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { createHash, randomBytes } from 'crypto';
+import { createHmac, createHash } from 'crypto';
 
 export const config = {
     runtime: 'edge',
@@ -7,7 +7,11 @@ export const config = {
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const HMAC_SECRET = process.env.SCRIPT_HMAC_SECRET || 'fallback-change-me';
+const HMAC_SECRET = process.env.SCRIPT_HMAC_SECRET;
+
+if (!HMAC_SECRET) {
+    throw new Error('[Gateway Complete] Missing SCRIPT_HMAC_SECRET in environment');
+}
 
 /**
  * Gera um token de gateway HMAC válido por 1 hora
@@ -16,7 +20,7 @@ const HMAC_SECRET = process.env.SCRIPT_HMAC_SECRET || 'fallback-change-me';
 function generateGatewayToken(keyHash: string): string {
     const exp = Math.floor(Date.now() / 1000) + 3600; // 1 hora
     const payload = `${keyHash}:${exp}`;
-    const hmac = createHash('sha256').update(payload + HMAC_SECRET).digest('hex');
+    const hmac = createHmac('sha256', HMAC_SECRET).update(payload).digest('hex');
     const token = Buffer.from(`${payload}:${hmac}`).toString('base64url');
     return token;
 }

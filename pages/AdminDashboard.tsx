@@ -131,7 +131,13 @@ const AdminDashboard: React.FC = () => {
         setDeliveringKeyId(chat.id);
         setDeliveryFeedback(prev => ({ ...prev, [chat.id]: 'Enviando Key...' }));
 
-        const targetEmail = chat.contactEmail || chat.customerEmail || (chat.customerName && chat.customerName.includes('@') ? chat.customerName : 'phcbelfort@gmail.com');
+        const targetEmail = chat.contactEmail || chat.customerEmail || (chat.customerName && chat.customerName.includes('@') ? chat.customerName : '');
+
+        if (!targetEmail) {
+            setDeliveryFeedback(prev => ({ ...prev, [chat.id]: '❌ Nenhum email de contato disponível para este pedido.' }));
+            setDeliveringKeyId(null);
+            return;
+        }
 
         try {
             const response = await fetch('/api/deliver-key', {

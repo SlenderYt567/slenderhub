@@ -12,6 +12,34 @@ export default async function handler(req: any, res: any) {
         return res.status(500).json({ error: 'Server configuration error' });
     }
 
+    // ── Autenticação obrigatória ──
+    const authHeader = req.headers?.authorization || '';
+    const token = authHeader.replace('Bearer ', '');
+    if (!token) {
+        return res.status(401).json({ error: 'Authentication required — send Bearer token' });
+    }
+
+    const authClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+        auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+        global: { headers: { authorization: `Bearer ${token}` } }
+    });
+
+    const { data: { user }, error: authError } = await authClient.auth.getUser();
+    if (authError || !user) {
+        return res.status(401).json({ error: 'Invalid or expired authentication token' });
+    }
+
+    // Verificar se é admin
+    const { data: profile } = await authClient
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user.id)
+        .single();
+
+    if (!profile?.is_admin) {
+        return res.status(403).json({ error: 'Admin access required' });
+    }
+
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
         auth: { autoRefreshToken: false, persistSession: false }
     });

@@ -13,6 +13,10 @@ if (!HMAC_SECRET) {
     throw new Error('[Obfuscate] Missing SCRIPT_HMAC_SECRET in environment — set a random 64-char string');
 }
 
+function escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function obfuscateLua(source: string): string {
     // 1. Remove comments
     let code = source.replace(/--\[\[[\s\S]*?\]\]/g, '')  // block comments
@@ -35,7 +39,7 @@ function obfuscateLua(source: string): string {
     let varCounter = 0;
     code = code.replace(/\blocal\s+(\w+)/g, (match, name) => {
         const obfuscated = `_v${varCounter++}_`;
-        const regex = new RegExp(`\\b${name}\\b`, 'g');
+        const regex = new RegExp(`\\b${escapeRegex(name)}\\b`, 'g');
         code = code.replace(regex, obfuscated);
         return `local ${obfuscated}`;
     });

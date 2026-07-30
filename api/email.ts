@@ -1,5 +1,17 @@
 import nodemailer from 'nodemailer';
 
+/**
+ * Escapa caracteres HTML para prevenir injeção de HTML/script em templates de email
+ */
+function escapeHtml(text: string): string {
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 export function getTransporter() {
     const smtpUser = process.env.SMTP_EMAIL;
     const smtpPass = process.env.SMTP_PASSWORD;
@@ -31,6 +43,12 @@ export function generateKeyDeliveryEmailHtml(params: {
     const discordUrl = 'https://discord.gg/2B8TQ7A3MV';
     const actionUrl = isUrl ? keyContent : `https://slenderhub.shop/claim?key=${encodeURIComponent(keyContent)}`;
     const actionText = isUrl ? '⚡ Acessar Link de Resgate' : '🔑 Copiar Key / Ativar';
+
+    // Sanitizar valores fornecidos pelo usuário para evitar injeção HTML no template
+    const safeCustomerName = escapeHtml(customerName || 'Cliente');
+    const safeOrderId = escapeHtml(orderId || 'SLENDER-ONLINE');
+    const safeProductTitle = escapeHtml(productTitle || 'Produto Digital');
+    const safeKeyContent = escapeHtml(keyContent);
 
     return `
 <!DOCTYPE html>
@@ -187,15 +205,15 @@ export function generateKeyDeliveryEmailHtml(params: {
       <!-- Body -->
       <div class="body-content">
         <div class="greeting">
-          Olá, <strong>${customerName || 'Cliente'}</strong>! Obrigado por comprar no <strong>Slender Hub</strong>.
+          Olá, <strong>${safeCustomerName}</strong>! Obrigado por comprar no <strong>Slender Hub</strong>.
         </div>
 
         <div class="product-badge">
-          Pedido #${orderId || 'SLENDER-ONLINE'}
+          Pedido #${safeOrderId}
         </div>
 
         <h2 style="color: #ffffff; margin-top: 0; font-size: 20px;">
-          ${productTitle}
+          ${safeProductTitle}
         </h2>
         <p style="color: #94a3b8; font-size: 14px; margin-bottom: 20px;">
           Seu pagamento foi confirmado com sucesso. Abaixo está sua chave de licença / link de acesso exclusivo:
@@ -204,7 +222,7 @@ export function generateKeyDeliveryEmailHtml(params: {
         <!-- Key Highlight Box -->
         <div class="key-card">
           <div class="key-label">Sua Key / Código de Acesso</div>
-          <div class="key-code">${keyContent}</div>
+          <div class="key-code">${safeKeyContent}</div>
           <a href="${actionUrl}" target="_blank" class="btn-action">
             ${actionText}
           </a>
@@ -289,6 +307,7 @@ export default async function handler(request: Request) {
 
         const transporter = getTransporter();
         const smtpUser = process.env.SMTP_EMAIL;
+        const adminEmail = process.env.ADMIN_EMAIL;
 
         if (!transporter || !smtpUser) {
             console.warn("SMTP_EMAIL or SMTP_PASSWORD not set. Simulating email send...");
@@ -303,12 +322,17 @@ export default async function handler(request: Request) {
 
         const itemsList = items.map((item: any) => `- ${item.title} x${item.quantity} ($${item.price})`).join('\n');
 
-        const adminMailOptions = {
-            from: smtpUser,
-            to: process.env.ADMIN_EMAIL || 'slenderyt9@gmail.com',
-            subject: `[SlenderHub] Nova Compra via ${method.toUpperCase()}!`,
-            text: `Olá Admin!\n\nUma nova compra acabou de ser iniciada.\n\nDetalhes:\nComprador: ${customerName}\nE-mail de Contato: ${contactEmail}\nValor Total: $${totalValue}\nMétodo: ${method}\n\nItens Comprados:\n${itemsList}\n\nEntre no dashboard ou confira o chat para validar o pagamento e liberar o pedido.`
-        };
+        if (adminEmail) {
+            const adminMailOptions = {
+                from: smtpUser,
+                to: adminEmail,
+                subject: `[SlenderHub] Nova Compra via ${method.toUpperCase()}!`,
+                text: `Olá Admin!\n\nUma nova compra acabou de ser iniciada.\n\nDetalhes:\nComprador: ${customerName}\nE-mail de Contato: ${contactEmail}\nValor Total: $${totalValue}\nMétodo: ${method}\n\nItens Comprados:\n${itemsList}\n\nEntre no dashboard ou confira o chat para validar o pagamento e liberar o pedido.`
+            };
+            await transporter.sendMail(adminMailOptions);
+        } else {
+            console.warn("ADMIN_EMAIL not set. Skipping admin notification email.");
+        }
 
         const customerMailOptions = {
             from: smtpUser,
@@ -317,7 +341,6 @@ export default async function handler(request: Request) {
             text: `Olá ${customerName},\n\nObrigado pela sua compra!\n\nEnviaremos sua chave ou item em breve. Fique atento ao seu email ou se preferir nos contate no discord:\nhttps://discord.gg/2B8TQ7A3MV\n\nResumo do Pedido:\n${itemsList}\nTotal: $${totalValue}\n\nAtenciosamente,\nEquipe SlenderHub`
         };
 
-        await transporter.sendMail(adminMailOptions);
         await transporter.sendMail(customerMailOptions);
 
         return new Response(JSON.stringify({ success: true }), {

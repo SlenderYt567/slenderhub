@@ -9,9 +9,9 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 const generateKey = (prefix: string = 'SLENDER'): string => {
-    const part1 = randomBytes(3).toString('hex').toUpperCase();
-    const part2 = randomBytes(3).toString('hex').toUpperCase();
-    const part3 = randomBytes(3).toString('hex').toUpperCase();
+    const part1 = randomBytes(6).toString('hex').toUpperCase();
+    const part2 = randomBytes(6).toString('hex').toUpperCase();
+    const part3 = randomBytes(6).toString('hex').toUpperCase();
     return `${prefix}-${part1}-${part2}-${part3}`;
 };
 
