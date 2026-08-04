@@ -4,12 +4,12 @@
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "rewrites": [
-    { "source": "/api/keys/verify-logs$", "destination": "/api/keys.ts" },
-    { "source": "/api/keys/verify$", "destination": "/api/keys.ts" },
-    { "source": "/api/keys/generate$", "destination": "/api/keys.ts" },
-    { "source": "/api/keys/reset-hwid$", "destination": "/api/keys.ts" },
-    { "source": "/api/keys/claim-config$", "destination": "/api/keys.ts" },
-    { "source": "/api/keys/claim$", "destination": "/api/keys.ts" },
+    { "source": "/api/keys/verify-logs", "destination": "/api/keys.ts" },
+    { "source": "/api/keys/verify", "destination": "/api/keys.ts" },
+    { "source": "/api/keys/generate", "destination": "/api/keys.ts" },
+    { "source": "/api/keys/reset-hwid", "destination": "/api/keys.ts" },
+    { "source": "/api/keys/claim-config", "destination": "/api/keys.ts" },
+    { "source": "/api/keys/claim", "destination": "/api/keys.ts" },
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]

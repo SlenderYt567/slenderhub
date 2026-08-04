@@ -1,5 +1,9 @@
 import nodemailer from 'nodemailer';
 
+export const config = {
+    runtime: 'nodejs',
+};
+
 /**
  * Escapa caracteres HTML para prevenir injeção de HTML/script em templates de email
  */

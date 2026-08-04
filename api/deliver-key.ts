@@ -1,6 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendDigitalDeliveryEmail, getTransporter } from './email.js';
 
+export const config = {
+    runtime: 'nodejs',
+};
+
 export default async function handler(request: Request) {
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
