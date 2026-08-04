@@ -5,38 +5,30 @@ export const config = {
     runtime: 'nodejs',
 };
 
-export default async function handler(request: Request) {
+// Assinatura Express-style (req, res): o @vercel/node (Vercel 58+) não despacha
+// handlers Web API (request: Request) — penduravam com 0 bytes no runtime.
+export default async function handler(req: any, res: any) {
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
-        return new Response(JSON.stringify({ error: 'Server configuration error' }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' }
-        });
+        return res.status(500).json({ error: 'Server configuration error' });
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey, {
         auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false }
     });
 
-    if (request.method !== 'POST') {
-        return new Response(JSON.stringify({ error: 'Method Not Allowed' }), {
-            status: 405,
-            headers: { 'Content-Type': 'application/json' }
-        });
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
     try {
-        const body = await request.json();
-        const { orderId, productId, productTitle, customerEmail, customerName } = body;
+        const { orderId, productId, productTitle, customerEmail, customerName } = req.body || {};
 
         if (!productId || !customerEmail) {
-            return new Response(JSON.stringify({
+            return res.status(400).json({
                 error: 'Parâmetros obrigatórios ausentes: productId e customerEmail são necessários.'
-            }), {
-                status: 400,
-                headers: { 'Content-Type': 'application/json' }
             });
         }
 
@@ -91,13 +83,10 @@ export default async function handler(request: Request) {
                 }
             }
 
-            return new Response(JSON.stringify({
+            return res.status(200).json({
                 success: false,
                 reason: 'OUT_OF_STOCK',
                 message: 'Pagamento recebido, porém o estoque de keys está zerado. O administrador foi notificado para providenciar a reposição.'
-            }), {
-                status: 200,
-                headers: { 'Content-Type': 'application/json' }
             });
         }
 
@@ -121,23 +110,17 @@ export default async function handler(request: Request) {
                 .eq('id', orderId);
         }
 
-        return new Response(JSON.stringify({
+        return res.status(200).json({
             success: true,
             orderId: cleanOrderId,
             deliveredTo: customerEmail,
             keyId: keyId,
             simulatedEmail: emailResult.simulated,
             message: 'Key resgatada e e-mail enviado com sucesso!'
-        }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' }
         });
 
     } catch (error: any) {
         console.error("Erro na entrega de key digital:", error);
-        return new Response(JSON.stringify({ error: error.message || 'Erro interno no servidor' }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' }
-        });
+        return res.status(500).json({ error: error.message || 'Erro interno no servidor' });
     }
 }

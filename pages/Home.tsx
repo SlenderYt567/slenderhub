@@ -64,10 +64,10 @@ const Home: React.FC = () => {
               <Rocket className="h-5 w-5" />
               Browse Products
             </button>
-            <button disabled className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-orange-500/30 bg-orange-500/10 px-8 py-3.5 text-base font-bold text-orange-300 opacity-80 backdrop-blur-sm">
+            <Link to="/scripts" className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800/50 px-8 py-3.5 text-base font-bold text-white backdrop-blur-sm transition hover:bg-slate-800">
               <Terminal className="h-5 w-5" />
-              Script em manutenção
-            </button>
+              Get Scripts
+            </Link>
             <Link to="/pricing" className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-500/50 bg-blue-500/10 px-8 py-3.5 text-base font-bold text-blue-400 backdrop-blur-sm transition hover:bg-blue-500/20 hover:text-blue-300">
               <Star className="h-5 w-5" />
               Pricing (Key System)

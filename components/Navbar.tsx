@@ -43,11 +43,11 @@ const Navbar: React.FC = () => {
           <Link to="/contact" className={`hidden text-sm font-medium transition md:block ${isActive('/contact')}`}>
             Contact
           </Link>
-          <Link to="/pricing" className={`hidden text-sm font-medium transition md:block ${isActive('/pricing')}`}>
-            Pricing
+          <Link to="/scripts" className={`hidden text-sm font-medium transition md:block ${isActive('/scripts')}`}>
+            Script
           </Link>
           {isAuthenticated && (
-            <Link to="/developer-panel" className={`hidden text-sm font-medium transition md:block ${isActive('/developer-panel')}`}>
+            <Link to="/admin-dashboard" className={`hidden text-sm font-medium transition md:block ${isActive('/admin-dashboard')}`}>
               Developer Panel
             </Link>
           )}
@@ -127,10 +127,10 @@ const Navbar: React.FC = () => {
         <div className="md:hidden border-t border-slate-800 bg-slate-950 px-4 py-4 space-y-3 shadow-xl">
           <Link to="/" onClick={() => setIsMenuOpen(false)} className={`block text-base font-medium ${isActive('/')}`}>Shop</Link>
           <Link to="/contact" onClick={() => setIsMenuOpen(false)} className={`block text-base font-medium ${isActive('/contact')}`}>Contact</Link>
-          <Link to="/pricing" onClick={() => setIsMenuOpen(false)} className={`block text-base font-medium ${isActive('/pricing')}`}>Pricing</Link>
+          <Link to="/scripts" onClick={() => setIsMenuOpen(false)} className={`block text-base font-medium ${isActive('/scripts')}`}>Script</Link>
           
           {isAuthenticated && (
-            <Link to="/developer-panel" onClick={() => setIsMenuOpen(false)} className={`block text-base font-medium ${isActive('/developer-panel')}`}>Developer Panel</Link>
+            <Link to="/admin-dashboard" onClick={() => setIsMenuOpen(false)} className={`block text-base font-medium ${isActive('/admin-dashboard')}`}>Developer Panel</Link>
           )}
 
           {isAdmin && (

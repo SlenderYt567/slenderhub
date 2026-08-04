@@ -4,28 +4,23 @@ export const config = {
     runtime: 'nodejs',
 };
 
-export default async function handler(request: Request) {
-    if (request.method !== 'POST') {
-        return new Response('Method Not Allowed', { status: 405 });
+// Assinatura Express-style (req, res): o @vercel/node (Vercel 58+) não despacha
+// handlers Web API (request: Request) — penduravam com 0 bytes no runtime.
+export default async function handler(req: any, res: any) {
+    if (req.method !== 'POST') {
+        return res.status(405).send('Method Not Allowed');
     }
 
     const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
     if (!stripeSecretKey) {
-        return new Response(JSON.stringify({ error: 'Stripe not configured' }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' }
-        });
+        return res.status(500).json({ error: 'Stripe not configured' });
     }
 
     try {
-        const body = await request.json();
-        const { amount, currency = 'usd', customerEmail } = body;
+        const { amount, currency = 'usd', customerEmail } = req.body || {};
 
         if (!amount || amount <= 0) {
-            return new Response(JSON.stringify({ error: 'Invalid amount' }), {
-                status: 400,
-                headers: { 'Content-Type': 'application/json' }
-            });
+            return res.status(400).json({ error: 'Invalid amount' });
         }
 
         const stripe = new Stripe(stripeSecretKey);
@@ -40,16 +35,10 @@ export default async function handler(request: Request) {
             }
         });
 
-        return new Response(JSON.stringify({ clientSecret: paymentIntent.client_secret }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' }
-        });
+        return res.status(200).json({ clientSecret: paymentIntent.client_secret });
 
     } catch (error: any) {
         console.error('Stripe intent error:', error);
-        return new Response(JSON.stringify({ error: error.message || 'Internal error' }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' }
-        });
+        return res.status(500).json({ error: error.message || 'Internal error' });
     }
 }

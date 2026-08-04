@@ -656,12 +656,16 @@ export default async function handler(req: any, res: any) {
     switch (route) {
         case 'verify':
             return handleVerify(req, res);
+        // ── Temporariamente desativados (Developer Panel offline) ──────────
         case 'generate':
-            return handleGenerate(req, res);
         case 'reset-hwid':
-            return handleResetHwid(req, res);
         case 'verify-logs':
-            return handleVerifyLogs(req, res);
+            return res.status(503).json({
+                success: false,
+                error: 'System temporarily disabled. The developer panel is offline.',
+                disabled: true,
+            });
+        // ────────────────────────────────────────────────────────────────────
         case 'claim':
             return handleClaim(req, res);
         case 'claim-config':

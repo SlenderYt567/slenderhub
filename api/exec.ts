@@ -10,28 +10,28 @@ export const config = {
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-export default async function handler(request: Request) {
+// Assinatura Express-style (req, res): o @vercel/node (Vercel 58+) não despacha
+// handlers Web API (request: Request) corretamente — crashavam com
+// FUNCTION_INVOCATION_FAILED (request.headers.get não existe no IncomingMessage).
+export default async function handler(req: any, res: any) {
     // Verificar User-Agent Roblox (proteção básica)
-    const userAgent = request.headers.get('user-agent') || '';
+    const userAgent = (req.headers?.['user-agent'] as string) || '';
     const isRoblox = userAgent.toLowerCase().includes('roblox');
 
     if (!isRoblox) {
-        return new Response('ERRO: Você não pode acessar o código aberto desse script.', {
-            status: 403,
-            headers: { 'Content-Type': 'text/plain; charset=utf-8' }
-        });
+        return res.status(403).send('ERRO: Você não pode acessar o código aberto desse script.');
     }
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-        return new Response('-- Erro de configuração do servidor.', { status: 500 });
+        return res.status(500).send('-- Erro de configuração do servidor.');
     }
 
     // Extrair scriptId da query string
-    const url = new URL(request.url);
+    const url = new URL(req.url || '/', 'http://localhost');
     const scriptId = url.searchParams.get('script_id') || url.searchParams.get('scriptId');
 
     if (!scriptId) {
-        return new Response('-- script_id é obrigatório.', { status: 400 });
+        return res.status(400).send('-- script_id é obrigatório.');
     }
 
     try {
@@ -47,22 +47,18 @@ export default async function handler(request: Request) {
             .single();
 
         if (error || !script || script.is_active === false) {
-            return new Response('-- Script não encontrado ou desativado.', { status: 404 });
+            return res.status(404).send('-- Script não encontrado ou desativado.');
         }
 
         // Priorizar script ofuscado, fallback para texto puro
         const content = script.script_obfuscated || script.script_content || '-- Script vazio';
 
-        return new Response(content, {
-            status: 200,
-            headers: {
-                'Content-Type': 'text/plain; charset=utf-8',
-                'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate'
-            },
-        });
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        return res.status(200).send(content);
 
     } catch (error) {
         console.error('[Exec] Erro:', error);
-        return new Response('-- Ocorreu um erro interno no servidor ao obter o script.', { status: 500 });
+        return res.status(500).send('-- Ocorreu um erro interno no servidor ao obter o script.');
     }
 }

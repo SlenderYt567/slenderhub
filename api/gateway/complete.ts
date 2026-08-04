@@ -27,30 +27,22 @@ function generateGatewayToken(keyHash: string): string {
     return token;
 }
 
-export default async function handler(request: Request) {
-    if (request.method !== 'POST') {
-        return new Response(JSON.stringify({ success: false, error: 'Method Not Allowed' }), {
-            status: 405,
-            headers: { 'Content-Type': 'application/json' }
-        });
+// Assinatura Express-style (req, res): o @vercel/node (Vercel 58+) não despacha
+// handlers Web API (request: Request) — crashavam com FUNCTION_INVOCATION_FAILED.
+export default async function handler(req: any, res: any) {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ success: false, error: 'Method Not Allowed' });
     }
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-        return new Response(JSON.stringify({ success: false, error: 'Server configuration error' }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' }
-        });
+        return res.status(500).json({ success: false, error: 'Server configuration error' });
     }
 
     try {
-        const body = await request.json();
-        const { key_string, steps_completed } = body || {};
+        const { key_string, steps_completed } = req.body || {};
 
         if (!key_string || typeof key_string !== 'string') {
-            return new Response(JSON.stringify({ success: false, error: 'key_string is required' }), {
-                status: 400,
-                headers: { 'Content-Type': 'application/json' }
-            });
+            return res.status(400).json({ success: false, error: 'key_string is required' });
         }
 
         const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
@@ -66,32 +58,20 @@ export default async function handler(request: Request) {
             .single();
 
         if (keyError || !keyData || !keyData.is_active || keyData.is_banned) {
-            return new Response(JSON.stringify({ success: false, error: 'Invalid or inactive key' }), {
-                status: 404,
-                headers: { 'Content-Type': 'application/json' }
-            });
+            return res.status(404).json({ success: false, error: 'Invalid or inactive key' });
         }
 
         // Gerar token de gateway
         const token = generateGatewayToken(keyHash);
 
-        return new Response(JSON.stringify({
+        return res.status(200).json({
             success: true,
             token,
             expires_in: 3600
-        }), {
-            status: 200,
-            headers: {
-                'Content-Type': 'application/json',
-                'Cache-Control': 'no-store'
-            }
         });
 
     } catch (error) {
         console.error('[Gateway Complete] Error:', error);
-        return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' }
-        });
+        return res.status(500).json({ success: false, error: 'Internal server error' });
     }
 }

@@ -300,14 +300,15 @@ export async function sendDigitalDeliveryEmail(params: {
     return { success: true, simulated: false };
 }
 
-export default async function handler(request: Request) {
-    if (request.method !== 'POST') {
-        return new Response('Method Not Allowed', { status: 405 });
+// Assinatura Express-style (req, res): o @vercel/node (Vercel 58+) não despacha
+// handlers Web API (request: Request) — penduravam com 0 bytes no runtime.
+export default async function handler(req: any, res: any) {
+    if (req.method !== 'POST') {
+        return res.status(405).send('Method Not Allowed');
     }
 
     try {
-        const body = await request.json();
-        const { contactEmail, customerName, totalValue, items, method } = body;
+        const { contactEmail, customerName, totalValue, items, method } = req.body || {};
 
         const transporter = getTransporter();
         const smtpUser = process.env.SMTP_EMAIL;
@@ -318,10 +319,7 @@ export default async function handler(request: Request) {
             console.log("Simulated Admin Alert:", { contactEmail, customerName, totalValue, method });
             console.log("Simulated Customer Email to:", contactEmail);
             
-            return new Response(JSON.stringify({ success: true, simulated: true }), {
-                status: 200,
-                headers: { 'Content-Type': 'application/json' }
-            });
+            return res.status(200).json({ success: true, simulated: true });
         }
 
         const itemsList = items.map((item: any) => `- ${item.title} x${item.quantity} ($${item.price})`).join('\n');
@@ -347,17 +345,11 @@ export default async function handler(request: Request) {
 
         await transporter.sendMail(customerMailOptions);
 
-        return new Response(JSON.stringify({ success: true }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' }
-        });
+        return res.status(200).json({ success: true });
 
     } catch (error: any) {
         console.error("Email send error:", error);
-        return new Response(JSON.stringify({ error: error.message || 'Internal error' }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' }
-        });
+        return res.status(500).json({ error: error.message || 'Internal error' });
     }
 }
 

@@ -69,6 +69,13 @@ ${code.replace(/_S(\d+)_/g, '_d(_S[$1])')}
 }
 
 export default async function handler(req: any, res: any) {
+    // ── Temporariamente desativado (Developer Panel offline) ──
+    return res.status(503).json({
+        success: false,
+        error: 'System temporarily disabled. The developer panel is offline.',
+        disabled: true,
+    });
+    // ────────────────────────────────────────────────────────────
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }

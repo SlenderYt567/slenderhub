@@ -20,6 +20,7 @@ import Pricing from './pages/Pricing';
 import ScriptManager from './pages/ScriptManager';
 import ClaimKey from './pages/ClaimKey';
 import Scripts from './pages/Scripts';
+import Disabled from './pages/Disabled';
 import { StoreProvider } from './store';
 
 const PAYPAL_CLIENT_ID = '';
@@ -44,13 +45,14 @@ function App() {
               <Route path="/contact" element={<Contact />} />
               
               {/* Páginas do Sistema de Chaves (SlenderKey / Luarmor Clone) */}
-              <Route path="/developer-panel" element={<DeveloperPanel />} />
-              <Route path="/script-manager" element={<ScriptManager />} />
+              {/* Temporariamente desativadas: developer-panel, script-manager e pricing */}
+              <Route path="/developer-panel" element={<Disabled title="Developer Panel indisponível" message="O painel de desenvolvedores está temporariamente desativado. O sistema de chaves voltará em breve." />} />
+              <Route path="/script-manager" element={<Disabled title="Script Manager indisponível" message="O gerenciador de scripts está temporariamente desativado." />} />
               <Route path="/documentation" element={<Documentation />} />
               <Route path="/unlock/:key" element={<UnlockKey />} />
               <Route path="/claim" element={<ClaimKey />} />
               <Route path="/verify-gateway" element={<GatewayVerify />} />
-              <Route path="/pricing" element={<Pricing />} />
+              <Route path="/pricing" element={<Disabled title="Preços indisponíveis" message="A página de preços está temporariamente desativada. Os planos voltarão em breve." />} />
               <Route path="/scripts" element={<Scripts />} />
               
               {/* Fallback */}
