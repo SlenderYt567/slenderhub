@@ -8,6 +8,7 @@ export type Currency = 'USD' | 'BRL';
 interface StoreContextType {
   products: Product[];
   cart: CartItem[];
+  getProductDetail: (id: string) => Promise<Product | null>;
   addToCart: (product: Product, quantity?: number, variant?: any) => void;
   removeFromCart: (productId: string) => void;
   clearCart: () => void;
@@ -20,6 +21,7 @@ interface StoreContextType {
   logout: () => Promise<void>;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  authReady: boolean;
   totalCartValue: number;
   // Chat capabilities
   chats: ChatSession[];
@@ -46,6 +48,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [cart, setCart] = useState<CartItem[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
   const [loading, setLoading] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
@@ -91,9 +94,11 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         .maybeSingle()
         .then(({ data }) => {
           setIsAdmin(data?.is_admin === true);
-        });
+        })
+        .finally(() => setAuthReady(true));
     } else {
       setIsAdmin(false);
+      // authReady é controlado pelo getSession — NÃO setar aqui (evita race de redirect)
     }
   }, [user]);
 
@@ -108,11 +113,19 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [chats, setChats] = useState<ChatSession[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
 
+  // Product cache (sessionStorage) — evita refetch no reload/navegação
+  const PRODUCTS_CACHE_KEY = 'slenderhub_products_v1';
+  const PRODUCTS_CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+
   // FETCH DATA ON LOAD
   useEffect(() => {
     // Check active session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      // Deslogado → auth está pronto (não espera query de profiles)
+      if (!session?.user) {
+        setAuthReady(true);
+      }
     });
 
     // Listen for auth changes
@@ -123,7 +136,6 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     });
 
     fetchProducts();
-    fetchChats();
 
     return () => subscription.unsubscribe();
   }, []);
@@ -138,16 +150,63 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     // Legacy profile refresh logic removed
   };
 
-  const fetchProducts = async () => {
-    setLoading(true);
+  // Só carrega chats quando um admin está autenticado (páginas de admin/chat).
+  // Visitantes públicos NÃO disparam 2 round-trips desnecessários ao Supabase.
+  useEffect(() => {
+    if (user && isAdmin) {
+      fetchChats();
+    }
+  }, [user, isAdmin]);
+
+  // Busca um produto completo (COM imagem) on-demand para a página de detalhes
+  const getProductDetail = async (id: string): Promise<Product | null> => {
+    const cached = products.find(p => p.id === id && p.image);
+    if (cached) return cached;
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('*, variants:product_variants(*)')
+        .select('id,title,description,price,image,category,stock,featured,created_at,variants:product_variants(id,product_id,name,price,image,category,created_at)')
+        .eq('id', id)
+        .maybeSingle();
+      if (error) console.error('Error fetching product detail:', error);
+      return (data as Product) || null;
+    } catch (e) {
+      console.error('Critical product detail error', e);
+      return null;
+    }
+  };
+
+  const fetchProducts = async (force = false) => {
+    // Cache em sessionStorage: produtos aparecem instantaneamente no reload
+    if (!force) {
+      try {
+        const cached = sessionStorage.getItem(PRODUCTS_CACHE_KEY);
+        if (cached) {
+          const { data, ts } = JSON.parse(cached);
+          if (Array.isArray(data) && Date.now() - ts < PRODUCTS_CACHE_TTL) {
+            setProducts(data as Product[]);
+            return;
+          }
+        }
+      } catch { /* cache inválido — ignora */ }
+    }
+
+    setLoading(true);
+    try {
+      // Listagem NÃO busca a coluna image (imagens base64 gigantes no banco):
+      // ProductCard usa placeholder elegante e ProductDetails busca a imagem on-demand.
+      const { data, error } = await supabase
+        .from('products')
+        .select('id,title,description,price,category,stock,featured,created_at,variants:product_variants(id,product_id,name,price,category,created_at)')
         .order('created_at', { ascending: false });
 
       if (error) console.error('Error fetching products:', error);
-      if (data) setProducts(data as Product[]);
+      if (data) {
+        setProducts(data as Product[]);
+        try {
+          sessionStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify({ data, ts: Date.now() }));
+        } catch { /* storage cheio — ignora */ }
+      }
     } catch (e) {
       console.error("Critical fetch error", e);
     } finally {
@@ -257,13 +316,15 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         product_id: product.id,
         name: v.name,
         price: v.price,
-        image: v.image
+        image: v.image,
+        category: v.category || null
       }));
       await supabase.from('product_variants').insert(variantsToInsert);
     }
 
     // Update local state
     setProducts((prev) => [product, ...prev]);
+    try { sessionStorage.removeItem(PRODUCTS_CACHE_KEY); } catch {}
     setLoading(false);
     return true;
   };
@@ -294,12 +355,14 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         product_id: updatedProduct.id,
         name: v.name,
         price: v.price,
-        image: v.image
+        image: v.image,
+        category: v.category || null
       }));
       await supabase.from('product_variants').insert(variantsToInsert);
     }
 
     setProducts((prev) => prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p)));
+    try { sessionStorage.removeItem(PRODUCTS_CACHE_KEY); } catch {}
     setLoading(false);
     return true;
   };
@@ -308,6 +371,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setLoading(true);
     await supabase.from('products').delete().eq('id', productId);
     setProducts((prev) => prev.filter((p) => p.id !== productId));
+    try { sessionStorage.removeItem(PRODUCTS_CACHE_KEY); } catch {}
     setLoading(false);
   };
 
@@ -480,6 +544,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       value={{
         products,
         cart,
+        getProductDetail,
         addToCart,
         removeFromCart,
         clearCart,
@@ -492,6 +557,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         logout,
         isAuthenticated: !!user,
         isAdmin,
+        authReady,
         totalCartValue,
         chats,
         messages,

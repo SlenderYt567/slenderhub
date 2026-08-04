@@ -5,7 +5,7 @@ import { MessageSquare, Clock, ArrowRight, User, CheckCircle, XCircle, DollarSig
 import { supabase } from '../lib/supabaseClient';
 
 const AdminDashboard: React.FC = () => {
-    const { chats, isAdmin, products, verifyPayment, closeChat, showToast } = useStore();
+    const { chats, isAdmin, products, verifyPayment, closeChat, showToast, authReady } = useStore();
     const navigate = useNavigate();
     const [deliveringKeyId, setDeliveringKeyId] = useState<string | null>(null);
     const [deliveryFeedback, setDeliveryFeedback] = useState<{ [key: string]: string }>({});
@@ -20,12 +20,13 @@ const AdminDashboard: React.FC = () => {
     const [keyFilterStatus, setKeyFilterStatus] = useState<'ALL' | 'AVAILABLE' | 'DELIVERED'>('ALL');
 
     useEffect(() => {
-        if (!isAdmin) {
+        // Só redireciona após o perfil ser carregado (evita race no refresh direto da página)
+        if (authReady && !isAdmin) {
             navigate('/login');
-        } else {
+        } else if (authReady && isAdmin) {
             fetchStockList();
         }
-    }, [isAdmin, navigate]);
+    }, [isAdmin, authReady, navigate]);
 
     const fetchStockList = async () => {
         setLoadingStock(true);

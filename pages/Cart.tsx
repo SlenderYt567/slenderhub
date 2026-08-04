@@ -40,11 +40,17 @@ const Cart: React.FC = () => {
                 key={item.id}
                 className="flex items-center gap-4 rounded-xl border border-slate-800 bg-slate-900 p-4 transition hover:border-slate-700"
               >
-                <img
-                  src={item.image}
-                  alt={item.title}
-                  className="h-24 w-24 rounded-lg object-cover"
-                />
+                {item.image ? (
+                  <img
+                    src={item.image}
+                    alt={item.title}
+                    className="h-24 w-24 rounded-lg object-cover"
+                  />
+                ) : (
+                  <div className="flex h-24 w-24 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 text-3xl font-black text-white/30">
+                    {item.title.charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <div className="flex-1">
                   <div className="flex items-start justify-between">
                     <div>

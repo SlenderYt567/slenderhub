@@ -3,9 +3,10 @@ import { useStore } from '../store';
 import { Product, ProductVariant } from '../types';
 import { Save, Package, DollarSign, Image as ImageIcon, Tag, ArrowLeft, Trash, Upload, RefreshCw, Edit2 } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { compressImage } from '../lib/compressImage';
 
 const EditProduct: React.FC = () => {
-  const { products, updateProduct, isAdmin, exchangeRate } = useStore();
+  const { products, updateProduct, getProductDetail, isAdmin, exchangeRate } = useStore();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
 
@@ -20,8 +21,20 @@ const EditProduct: React.FC = () => {
 
   const [inputCurrency, setInputCurrency] = useState<'USD' | 'BRL'>('USD');
   const [variants, setVariants] = useState<ProductVariant[]>([]);
-  const [newVariant, setNewVariant] = useState({ name: '', price: '', image: '' });
+  const [newVariant, setNewVariant] = useState({ name: '', price: '', image: '', category: '' });
   const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
+
+  // Sugestões de categorias internas do produto (ex: Pet Simulator)
+  const VARIANT_CATEGORY_SUGGESTIONS = ['Gargantuan', 'Diamonds Huges', 'Titanics', 'Huge', 'Normal', 'Exclusive'];
+
+  // Agrupa variantes por categoria para exibição organizada
+  const groupedVariants = useMemo(() => {
+    return variants.reduce<Record<string, ProductVariant[]>>((acc, v) => {
+      const key = v.category?.trim() || 'Uncategorized';
+      (acc[key] = acc[key] || []).push(v);
+      return acc;
+    }, {});
+  }, [variants]);
 
   // Extract unique categories for suggestions
   const existingCategories = useMemo(() => {
@@ -33,30 +46,41 @@ const EditProduct: React.FC = () => {
       navigate('/login');
       return;
     }
-    const product = products.find(p => p.id === id);
-    if (product) {
-      setFormData({
-        title: product.title,
-        description: product.description,
-        price: product.price.toString(),
-        image: product.image,
-        category: product.category,
-        stock: product.stock.toString(),
-      });
-      if (product.variants) {
-        setVariants(product.variants);
+    const load = async () => {
+      // A listagem não traz a coluna image — busca o produto completo (com imagem)
+      // para não sobrescrever com vazio ao salvar.
+      let product = products.find(p => p.id === id);
+      if (product && !product.image) {
+        const detail = await getProductDetail(id!);
+        if (detail) product = { ...product, ...detail };
       }
-    } else {
-      navigate('/');
-    }
-  }, [id, products, isAdmin, navigate]);
+      if (product) {
+        setFormData({
+          title: product.title,
+          description: product.description,
+          price: product.price.toString(),
+          image: product.image || '',
+          category: product.category,
+          stock: product.stock.toString(),
+        });
+        if (product.variants) {
+          setVariants(product.variants);
+        }
+      } else {
+        navigate('/');
+      }
+    };
+    void load();
+  }, [id, products, isAdmin, navigate, getProductDetail]);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData({ ...formData, image: reader.result as string });
+      reader.onloadend = async () => {
+        // Comprime para 400px/q0.75 — evita payloads de MBs no Supabase
+        const compressed = await compressImage(reader.result as string);
+        setFormData({ ...formData, image: compressed });
       };
       reader.readAsDataURL(file);
     }
@@ -93,7 +117,8 @@ const EditProduct: React.FC = () => {
         ...v,
         name: newVariant.name,
         price: finalPriceUSD,
-        image: newVariant.image || undefined
+        image: newVariant.image || undefined,
+        category: newVariant.category || undefined
       } : v));
       setEditingVariantId(null);
     } else {
@@ -101,11 +126,12 @@ const EditProduct: React.FC = () => {
         id: Date.now().toString() + Math.random().toString(),
         name: newVariant.name,
         price: finalPriceUSD,
-        image: newVariant.image || undefined
+        image: newVariant.image || undefined,
+        category: newVariant.category || undefined
       };
       setVariants([...variants, variant]);
     }
-    setNewVariant({ name: '', price: '', image: '' });
+    setNewVariant({ name: '', price: '', image: '', category: '' });
   };
 
   const editVariant = (variant: ProductVariant) => {
@@ -116,7 +142,8 @@ const EditProduct: React.FC = () => {
     setNewVariant({
       name: variant.name,
       price: variantPriceInInputCurrency,
-      image: variant.image || ''
+      image: variant.image || '',
+      category: variant.category || ''
     });
     setEditingVariantId(variant.id);
   };
@@ -125,7 +152,7 @@ const EditProduct: React.FC = () => {
     setVariants(variants.filter(v => v.id !== id));
     if (editingVariantId === id) {
       setEditingVariantId(null);
-      setNewVariant({ name: '', price: '', image: '' });
+      setNewVariant({ name: '', price: '', image: '', category: '' });
     }
   };
 
@@ -147,7 +174,7 @@ const EditProduct: React.FC = () => {
       title: formData.title,
       description: formData.description,
       price: productPrice,
-      image: formData.image || `https://picsum.photos/seed/${Date.now()}/400/300`,
+      image: formData.image || '',
       category: formData.category.toLowerCase(),
       stock: parseInt(formData.stock) || 0,
       variants: variants.length > 0 ? variants : undefined
@@ -221,27 +248,36 @@ const EditProduct: React.FC = () => {
             </div>
 
             {variants.length > 0 && (
-              <div className="mb-4 space-y-2">
-                {variants.map(v => (
-                  <div key={v.id} className="flex items-center justify-between rounded bg-slate-900 px-3 py-2 border border-slate-800">
-                    <div className="flex items-center gap-3">
-                      {v.image && (
-                         <img src={v.image} alt={v.name} className="w-8 h-8 rounded bg-slate-950 object-cover" />
-                      )}
-                      <span className="font-medium text-white">{v.name}</span>
-                      <span className="text-sm text-blue-400">
-                        {inputCurrency === 'BRL'
-                          ? `R$ ${(v.price * exchangeRate).toFixed(2)}`
-                          : `$${v.price.toFixed(2)}`}
-                      </span>
+              <div className="mb-4 space-y-3">
+                {Object.entries(groupedVariants).map(([cat, list]) => (
+                  <div key={cat}>
+                    <div className="mb-1.5 inline-flex items-center rounded-full bg-blue-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-blue-400">
+                      {cat}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button type="button" onClick={() => editVariant(v)} className="text-blue-500 hover:text-white">
-                        <Edit2 className="h-4 w-4" />
-                      </button>
-                      <button type="button" onClick={() => removeVariant(v.id)} className="text-red-500 hover:text-white">
-                        <Trash className="h-4 w-4" />
-                      </button>
+                    <div className="space-y-2">
+                      {list.map(v => (
+                        <div key={v.id} className="flex items-center justify-between rounded bg-slate-900 px-3 py-2 border border-slate-800">
+                          <div className="flex items-center gap-3">
+                            {v.image && (
+                               <img src={v.image} alt={v.name} className="w-8 h-8 rounded bg-slate-950 object-cover" />
+                            )}
+                            <span className="font-medium text-white">{v.name}</span>
+                            <span className="text-sm text-blue-400">
+                              {inputCurrency === 'BRL'
+                                ? `R$ ${(v.price * exchangeRate).toFixed(2)}`
+                                : `$${v.price.toFixed(2)}`}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button type="button" onClick={() => editVariant(v)} className="text-blue-500 hover:text-white">
+                              <Edit2 className="h-4 w-4" />
+                            </button>
+                            <button type="button" onClick={() => removeVariant(v.id)} className="text-red-500 hover:text-white">
+                              <Trash className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ))}
@@ -256,6 +292,19 @@ const EditProduct: React.FC = () => {
                 value={newVariant.name}
                 onChange={(e) => setNewVariant({ ...newVariant, name: e.target.value })}
               />
+              <input
+                type="text"
+                list="variant-categories-edit"
+                placeholder="Category (Gargantuan, Huges, Titanics…)"
+                className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                value={newVariant.category}
+                onChange={(e) => setNewVariant({ ...newVariant, category: e.target.value })}
+              />
+              <datalist id="variant-categories-edit">
+                {VARIANT_CATEGORY_SUGGESTIONS.map(s => (
+                  <option key={s} value={s} />
+                ))}
+              </datalist>
               <input
                 type="text"
                 placeholder="Image URL (Optional)"

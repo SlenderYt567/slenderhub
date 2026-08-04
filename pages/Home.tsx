@@ -34,7 +34,13 @@ const Home: React.FC = () => {
     <div className="min-h-screen bg-slate-950">
       {/* Hero Section */}
       <section className="relative overflow-hidden border-b border-slate-800 bg-[#0B1120] px-4 py-20 sm:px-6 lg:px-8">
-        <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/robloxtech/1920/1080')] bg-cover bg-center opacity-10 mix-blend-overlay"></div>
+        <div
+          className="absolute inset-0 opacity-10 mix-blend-overlay"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='none'/%3E%3Ccircle cx='60' cy='60' r='42' fill='none' stroke='%233b82f6' stroke-width='1'/%3E%3Ccircle cx='60' cy='60' r='24' fill='none' stroke='%233b82f6' stroke-width='1'/%3E%3Cpath d='M60 0v18M60 102v18M0 60h18M102 60h18' stroke='%233b82f6' stroke-width='1'/%3E%3C/svg%3E")`,
+            backgroundSize: '120px 120px',
+          }}
+        ></div>
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 to-transparent"></div>
         
         <div className="relative mx-auto max-w-7xl text-center">
@@ -71,9 +77,9 @@ const Home: React.FC = () => {
           {/* 10k+ Sales Indicator */}
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row text-sm text-gray-400">
              <div className="flex -space-x-3">
-                <img className="inline-block h-10 w-10 rounded-full ring-4 ring-[#0B1120] object-cover" src="https://picsum.photos/seed/user1/100" alt=""/>
-                <img className="inline-block h-10 w-10 rounded-full ring-4 ring-[#0B1120] object-cover" src="https://picsum.photos/seed/user2/100" alt=""/>
-                <img className="inline-block h-10 w-10 rounded-full ring-4 ring-[#0B1120] object-cover" src="https://picsum.photos/seed/user3/100" alt=""/>
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 ring-4 ring-[#0B1120] text-sm font-bold text-white">S</div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-purple-600 to-pink-600 ring-4 ring-[#0B1120] text-sm font-bold text-white">R</div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 to-teal-600 ring-4 ring-[#0B1120] text-sm font-bold text-white">L</div>
                 <div className="flex h-10 w-10 items-center justify-center rounded-full ring-4 ring-[#0B1120] bg-slate-800 relative shadow-inner">
                    <span className="text-[10px] font-bold text-white">10k+</span>
                 </div>

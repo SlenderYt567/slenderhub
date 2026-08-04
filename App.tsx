@@ -1,6 +1,5 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { PayPalScriptProvider } from '@paypal/react-paypal-js';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Cart from './pages/Cart';
@@ -23,56 +22,54 @@ import ClaimKey from './pages/ClaimKey';
 import Scripts from './pages/Scripts';
 import { StoreProvider } from './store';
 
-const PAYPAL_CLIENT_ID = 'AdCW0tDanq77aiKHYBeikcyVMfgjcovBf5IB3OLF-y-Et1TeXaAsuVs08NnXPbfn5WAT6eHYv15itizq';
+const PAYPAL_CLIENT_ID = '';
 
 function App() {
   return (
-    <PayPalScriptProvider options={{ clientId: PAYPAL_CLIENT_ID, currency: 'USD', intent: 'capture' }}>
-      <StoreProvider>
-        <Router>
-          <div className="flex min-h-screen flex-col bg-slate-950 text-white selection:bg-blue-500/30 selection:text-blue-200">
-            <Navbar />
-            <div className="flex-1">
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/cart" element={<Cart />} />
-                <Route path="/admin" element={<Admin />} />
-                <Route path="/admin-dashboard" element={<AdminDashboard />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/edit/:id" element={<EditProduct />} />
-                <Route path="/product/:id" element={<ProductDetails />} />
-                <Route path="/checkout" element={<Checkout />} />
-                <Route path="/chat/:id" element={<ChatRoom />} />
-                <Route path="/contact" element={<Contact />} />
-                
-                {/* Páginas do Sistema de Chaves (SlenderKey / Luarmor Clone) */}
-                <Route path="/developer-panel" element={<DeveloperPanel />} />
-                <Route path="/script-manager" element={<ScriptManager />} />
-                <Route path="/documentation" element={<Documentation />} />
-                <Route path="/unlock/:key" element={<UnlockKey />} />
-                <Route path="/claim" element={<ClaimKey />} />
-                <Route path="/verify-gateway" element={<GatewayVerify />} />
-                <Route path="/pricing" element={<Pricing />} />
-                <Route path="/scripts" element={<Scripts />} />
-                
-                {/* Fallback */}
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </div>
-            <footer className="border-t border-slate-900 bg-[#020617] py-8 text-center text-sm text-gray-600">
-              <div className="mx-auto max-w-7xl px-4">
-                <p>&copy; {new Date().getFullYear()} Slender Hub. All rights reserved.</p>
-                <p className="mt-2 text-xs">Not affiliated with Roblox Corporation.</p>
-                <div className="mt-4 flex justify-center gap-4">
-                  <a href="#" className="hover:text-blue-500">Terms of Service</a>
-                  <a href="#" className="hover:text-blue-500">Privacy Policy</a>
-                </div>
-              </div>
-            </footer>
+    <StoreProvider>
+      <Router>
+        <div className="flex min-h-screen flex-col bg-slate-950 text-white selection:bg-blue-500/30 selection:text-blue-200">
+          <Navbar />
+          <div className="flex-1">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/cart" element={<Cart />} />
+              <Route path="/admin" element={<Admin />} />
+              <Route path="/admin-dashboard" element={<AdminDashboard />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/edit/:id" element={<EditProduct />} />
+              <Route path="/product/:id" element={<ProductDetails />} />
+              <Route path="/checkout" element={<Checkout />} />
+              <Route path="/chat/:id" element={<ChatRoom />} />
+              <Route path="/contact" element={<Contact />} />
+              
+              {/* Páginas do Sistema de Chaves (SlenderKey / Luarmor Clone) */}
+              <Route path="/developer-panel" element={<DeveloperPanel />} />
+              <Route path="/script-manager" element={<ScriptManager />} />
+              <Route path="/documentation" element={<Documentation />} />
+              <Route path="/unlock/:key" element={<UnlockKey />} />
+              <Route path="/claim" element={<ClaimKey />} />
+              <Route path="/verify-gateway" element={<GatewayVerify />} />
+              <Route path="/pricing" element={<Pricing />} />
+              <Route path="/scripts" element={<Scripts />} />
+              
+              {/* Fallback */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
           </div>
-        </Router>
-      </StoreProvider>
-    </PayPalScriptProvider>
+          <footer className="border-t border-slate-900 bg-[#020617] py-8 text-center text-sm text-gray-600">
+            <div className="mx-auto max-w-7xl px-4">
+              <p>&copy; {new Date().getFullYear()} Slender Hub. All rights reserved.</p>
+              <p className="mt-2 text-xs">Not affiliated with Roblox Corporation.</p>
+              <div className="mt-4 flex justify-center gap-4">
+                <a href="#" className="hover:text-blue-500">Terms of Service</a>
+                <a href="#" className="hover:text-blue-500">Privacy Policy</a>
+              </div>
+            </div>
+          </footer>
+        </div>
+      </Router>
+    </StoreProvider>
   );
 }
 

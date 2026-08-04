@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useStore } from '../store';
+import { ProductVariant } from '../types';
 import { ShoppingCart, ArrowLeft, ShieldCheck, Zap, Package, Minus, Plus, CreditCard, Check } from 'lucide-react';
 
 const ProductDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { products, addToCart, formatPrice, currency } = useStore();
+  const { products, getProductDetail, addToCart, formatPrice, currency } = useStore();
   
   const [product, setProduct] = useState(products.find(p => p.id === id));
   const [quantity, setQuantity] = useState(1);
@@ -19,7 +20,15 @@ const ProductDetails: React.FC = () => {
     if (found?.variants && found.variants.length > 0) {
         setSelectedVariantId(found.variants[0].id);
     }
-  }, [id, products]);
+
+    // A listagem não traz a coluna image (payload ~6MB de base64):
+    // busca o produto completo on-demand para exibir a imagem corretamente.
+    if (!found?.image) {
+      getProductDetail(id!).then(detail => {
+        if (detail) setProduct(prev => prev ? { ...prev, ...detail } : detail);
+      });
+    }
+  }, [id, products, getProductDetail]);
 
   if (!product) {
     return (
@@ -109,50 +118,64 @@ const ProductDetails: React.FC = () => {
             {/* Selection Controls */}
             <div className="space-y-6">
                 
-                {/* Variant/Plan Selector */}
-                {product.variants && product.variants.length > 0 && (
-                    <div>
-                        <label className="mb-2 block text-sm font-medium text-gray-300">
-                          {product.category === 'item' ? 'Select Item' : 'Select Plan'}
-                        </label>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                            {product.variants.map((variant) => (
-                                <button 
-                                    key={variant.id}
-                                    onClick={() => setSelectedVariantId(variant.id)}
-                                    className={`relative flex items-center justify-between rounded-xl border p-4 text-left transition overflow-hidden group ${
-                                        selectedVariantId === variant.id 
-                                        ? 'border-blue-500 bg-blue-500/10 ring-1 ring-blue-500' 
-                                        : 'border-slate-800 bg-slate-900 hover:border-slate-700'
-                                    }`}
-                                >
-                                    {/* Optional Variant Background Image blur */}
-                                    {variant.image && (
-                                        <div 
-                                          className="absolute inset-0 opacity-10 bg-cover bg-center transition-opacity group-hover:opacity-20"
-                                          style={{ backgroundImage: `url(${variant.image})` }}
-                                        />
-                                    )}
-
-                                    <div className="flex items-center gap-3 relative z-10 w-full">
+                {/* Variant/Plan Selector — agrupado por categoria interna (ex: Gargantuan, Huges, Titanics) */}
+                {product.variants && product.variants.length > 0 && (() => {
+                    const grouped = product.variants!.reduce<Record<string, ProductVariant[]>>((acc, v) => {
+                        const key = v.category?.trim() || 'Items';
+                        (acc[key] = acc[key] || []).push(v);
+                        return acc;
+                    }, {});
+                    const catColor = (cat: string) => {
+                        const c = cat.toLowerCase();
+                        if (c.includes('gargantuan')) return 'border-purple-500/40 bg-purple-500/10 text-purple-300';
+                        if (c.includes('huge')) return 'border-green-500/40 bg-green-500/10 text-green-300';
+                        if (c.includes('titanic')) return 'border-red-500/40 bg-red-500/10 text-red-300';
+                        return 'border-blue-500/40 bg-blue-500/10 text-blue-300';
+                    };
+                    return Object.entries(grouped).map(([cat, list]) => (
+                        <div key={cat} className="mb-4">
+                            <div className={`mb-2 inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wider ${catColor(cat)}`}>
+                                {cat}
+                            </div>
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                {list.map((variant) => (
+                                    <button 
+                                        key={variant.id}
+                                        onClick={() => setSelectedVariantId(variant.id)}
+                                        className={`relative flex items-center justify-between rounded-xl border p-4 text-left transition overflow-hidden group ${
+                                            selectedVariantId === variant.id 
+                                            ? 'border-blue-500 bg-blue-500/10 ring-1 ring-blue-500' 
+                                            : 'border-slate-800 bg-slate-900 hover:border-slate-700'
+                                        }`}
+                                    >
+                                        {/* Optional Variant Background Image blur */}
                                         {variant.image && (
-                                            <img src={variant.image} alt={variant.name} className="w-12 h-12 rounded-lg object-cover bg-slate-950 border border-slate-800 shadow-sm shrink-0" />
+                                            <div 
+                                              className="absolute inset-0 opacity-10 bg-cover bg-center transition-opacity group-hover:opacity-20"
+                                              style={{ backgroundImage: `url(${variant.image})` }}
+                                            />
                                         )}
-                                        <div className="flex-1 min-w-0">
-                                            <div className="text-sm font-bold text-white truncate">{variant.name}</div>
-                                            <div className="text-xs text-blue-400">{formatPrice(variant.price)}</div>
-                                        </div>
-                                        {selectedVariantId === variant.id && (
-                                            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500 text-white shrink-0 ml-2">
-                                                <Check className="h-3 w-3" />
+
+                                        <div className="flex items-center gap-3 relative z-10 w-full">
+                                            {variant.image && (
+                                                <img src={variant.image} alt={variant.name} className="w-12 h-12 rounded-lg object-cover bg-slate-950 border border-slate-800 shadow-sm shrink-0" />
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-sm font-bold text-white truncate">{variant.name}</div>
+                                                <div className="text-xs text-blue-400">{formatPrice(variant.price)}</div>
                                             </div>
-                                        )}
-                                    </div>
-                                </button>
-                            ))}
+                                            {selectedVariantId === variant.id && (
+                                                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500 text-white shrink-0 ml-2">
+                                                    <Check className="h-3 w-3" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
                         </div>
-                    </div>
-                )}
+                    ));
+                })()}
 
                 {/* Quantity */}
                 <div>

@@ -5,6 +5,8 @@ export interface ProductVariant {
   name: string;
   price: number;
   image?: string;
+  /** Subcategoria da variante (ex: Gargantuan, Diamonds Huges, Titanics) */
+  category?: string;
 }
 
 export interface Product {

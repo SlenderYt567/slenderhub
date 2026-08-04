@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store';
-import { ArrowLeft, Check, Copy, Loader2, MessageSquare, Upload, FileCheck, Globe, HelpCircle } from 'lucide-react';
+import { ArrowLeft, Check, Copy, Loader2, MessageSquare, Upload, FileCheck, Globe, HelpCircle, Coins } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 // Compresses a base64 image to max 800px and quality 70% to avoid Supabase payload limits
@@ -26,6 +26,67 @@ const compressImage = (base64: string, maxSize = 800, quality = 0.7): Promise<st
 
 const paypalQrCodeImage = '/paypal-qr.png';
 
+// ---------------------------------------------------------------------------
+// Crypto payments (Trust Wallet)
+// Configure os endereços reais no .env.local:
+//   VITE_CRYPTO_ADDRESS_USDT  -> endereço ERC-20 (Ethereum) — começa com 0x
+//   VITE_CRYPTO_ADDRESS_LTC   -> endereço nativo Litecoin (L/ltc1)
+//   VITE_CRYPTO_ADDRESS_SOL   -> endereço Solana (base58)
+// ---------------------------------------------------------------------------
+interface CryptoCoin {
+    id: string;          // CoinGecko id
+    symbol: string;
+    name: string;
+    color: string;
+    network: string;     // rede para enviar
+    warning: string;     // aviso específico
+    addressEnv: string;
+    addressFallback: string;
+}
+
+const CRYPTO_COINS: CryptoCoin[] = [
+    {
+        id: 'tether',
+        symbol: 'USDT',
+        name: 'Tether USD',
+        color: '#26A17B',
+        network: 'ERC-20 (Ethereum)',
+        warning: 'Send ONLY via ERC-20 (Ethereum) network. Other networks (BEP-20/TRC-20) will be lost.',
+        addressEnv: 'VITE_CRYPTO_ADDRESS_USDT',
+        addressFallback: '0x7ac5bb9341df0f1462466c36d02e69aa1140d1e5',
+    },
+    {
+        id: 'litecoin',
+        symbol: 'LTC',
+        name: 'Litecoin',
+        color: '#345D9D',
+        network: 'Litecoin (LTC)',
+        warning: 'Send ONLY on the Litecoin network. Do not send from other chains.',
+        addressEnv: 'VITE_CRYPTO_ADDRESS_LTC',
+        addressFallback: 'COLOQUE_SEU_ENDERECO_LTC',
+    },
+    {
+        id: 'solana',
+        symbol: 'SOL',
+        name: 'Solana',
+        color: '#9945FF',
+        network: 'Solana (SOL)',
+        warning: 'Send ONLY on the Solana network. Addresses from other chains will be lost.',
+        addressEnv: 'VITE_CRYPTO_ADDRESS_SOL',
+        addressFallback: 'COLOQUE_SEU_ENDERECO_SOL',
+    },
+];
+
+const getCryptoAddress = (coin: CryptoCoin): string => {
+    const env = (import.meta.env as Record<string, string | undefined>)[coin.addressEnv];
+    return env || coin.addressFallback;
+};
+
+const isCryptoAddressConfigured = (coin: CryptoCoin): boolean => {
+    const addr = getCryptoAddress(coin);
+    return addr && !addr.startsWith('COLOQUE_');
+};
+
 const Checkout: React.FC = () => {
     const { cart, totalCartValue, clearCart, createChat, isAuthenticated, user, formatPrice, exchangeRate, currency } = useStore();
     const navigate = useNavigate();
@@ -35,12 +96,39 @@ const Checkout: React.FC = () => {
     const [copied, setCopied] = useState(false);
     const [proofFile, setProofFile] = useState<string | null>(null);
     const [createdChatId, setCreatedChatId] = useState<string | null>(null);
-    const [paymentMethod, setPaymentMethod] = useState<'pix' | 'international'>('pix');
+    const [paymentMethod, setPaymentMethod] = useState<'pix' | 'international' | 'crypto'>('pix');
+    const [cryptoIndex, setCryptoIndex] = useState(0);
+    const [cryptoPrices, setCryptoPrices] = useState<Record<string, number>>({ tether: 1, litecoin: 0, solana: 0 });
+    const [cryptoPriceLoaded, setCryptoPriceLoaded] = useState(false);
+    const [copiedAddress, setCopiedAddress] = useState(false);
     const [contactEmail, setContactEmail] = useState(user?.email || '');
     const [emailError, setEmailError] = useState(false);
 
     // Specific Pix Key (configure via env var ou fallback)
     const pixCode = import.meta.env.VITE_PIX_KEY || "c8e4e850-c45d-4660-a2f1-44d8cf3aaf0f";
+
+    const selectedCoin = CRYPTO_COINS[cryptoIndex];
+    const cryptoAddress = getCryptoAddress(selectedCoin);
+    const cryptoPrice = cryptoPrices[selectedCoin.id] || 0;
+    const cryptoAmount = cryptoPrice > 0 ? (totalCartValue / cryptoPrice) : 0;
+
+    // Live crypto prices (USD) via CoinGecko
+    useEffect(() => {
+        fetch('https://api.coingecko.com/api/v3/simple/price?ids=tether,litecoin,solana&vs_currencies=usd')
+            .then(res => res.json())
+            .then(data => {
+                setCryptoPrices({
+                    tether: data?.tether?.usd ?? 1,
+                    litecoin: data?.litecoin?.usd ?? 0,
+                    solana: data?.solana?.usd ?? 0,
+                });
+            })
+            .catch(() => {
+                // Fallback aproximado caso a API falhe (jul/2026)
+                setCryptoPrices({ tether: 1, litecoin: 95, solana: 145 });
+            })
+            .finally(() => setCryptoPriceLoaded(true));
+    }, []);
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -70,12 +158,12 @@ const Checkout: React.FC = () => {
     };
 
     const handleFinish = async () => {
-        if (!proofFile && paymentMethod === 'pix') {
+        if (!proofFile && (paymentMethod === 'pix' || paymentMethod === 'crypto')) {
             alert("Please upload the payment proof to continue.");
             return;
         }
 
-        if (paymentMethod === 'pix' && (!contactEmail || !contactEmail.includes('@'))) {
+        if ((paymentMethod === 'pix' || paymentMethod === 'crypto') && (!contactEmail || !contactEmail.includes('@'))) {
             setEmailError(true);
             alert("Por favor insira um e-mail vÃ¡lido para entrega.");
             return;
@@ -86,7 +174,14 @@ const Checkout: React.FC = () => {
         // Use user's email/name if available
         const baseName = user?.email?.split('@')[0] || "Customer";
         const emailToDisplay = contactEmail || user?.email || "";
-        const customerNameAndEmail = emailToDisplay ? `${baseName} (${emailToDisplay})` : baseName;
+        const methodLabel = paymentMethod === 'pix'
+            ? 'Pix'
+            : paymentMethod === 'crypto'
+                ? `Crypto ${selectedCoin.symbol} (${selectedCoin.network})`
+                : 'PayPal QR';
+        const customerNameAndEmail = emailToDisplay
+            ? `${baseName} (${emailToDisplay}) - ${methodLabel}`
+            : `${baseName} - ${methodLabel}`;
 
         // Fire email notification with 8s timeout â€” non-blocking, never stalls the checkout
         const emailController = new AbortController();
@@ -100,7 +195,7 @@ const Checkout: React.FC = () => {
                 customerName: customerNameAndEmail,
                 totalValue: totalCartValue,
                 items: cart,
-                method: paymentMethod
+                method: methodLabel
             })
         }).catch(err => console.warn("Email API not available:", err))
           .finally(() => clearTimeout(emailTimeout));
@@ -132,6 +227,12 @@ const Checkout: React.FC = () => {
         setTimeout(() => setCopied(false), 2000);
     };
 
+    const copyCryptoAddress = () => {
+        navigator.clipboard.writeText(cryptoAddress);
+        setCopiedAddress(true);
+        setTimeout(() => setCopiedAddress(false), 2000);
+    };
+
     if (step === 'success') {
         return (
             <div className="flex min-h-[80vh] flex-col items-center justify-center px-4 text-center">
@@ -139,10 +240,10 @@ const Checkout: React.FC = () => {
                     <Check className="h-10 w-10" />
                 </div>
                 <h1 className="mb-2 text-3xl font-bold text-white">
-                    {paymentMethod === 'pix' ? 'Proof Received!' : 'Order Created!'}
+                    {paymentMethod === 'pix' ? 'Proof Received!' : paymentMethod === 'crypto' ? 'Crypto Payment Received!' : 'Order Created!'}
                 </h1>
                 <p className="mb-8 max-w-md text-gray-400">
-                    {paymentMethod === 'pix'
+                    {paymentMethod === 'pix' || paymentMethod === 'crypto'
                         ? "We have received your payment proof. An admin will verify it shortly."
                         : "Payment confirmed! Check your email or open the support chat below."}
                 </p>
@@ -192,7 +293,9 @@ const Checkout: React.FC = () => {
                                         <span className="text-gray-500 ml-1">x{item.quantity}</span>
                                     </span>
                                     {item.selectedVariant && (
-                                        <span className="text-xs text-blue-400">{item.selectedVariant.name}</span>
+                                        <span className="text-xs text-blue-400">
+                                            {item.selectedVariant.category ? `[${item.selectedVariant.category}] ` : ''}{item.selectedVariant.name}
+                                        </span>
                                     )}
                                 </div>
                                 <span className="font-medium text-white">
@@ -257,6 +360,22 @@ const Checkout: React.FC = () => {
                                         </div>
                                     </div>
                                     <div className={`h-4 w-4 rounded-full border-[3px] ${paymentMethod === 'international' ? 'border-indigo-500' : 'border-slate-600'}`}></div>
+                                </button>
+
+                                <button
+                                    onClick={() => setPaymentMethod('crypto')}
+                                    className={`flex w-full items-center justify-between rounded-xl border p-4 text-left transition ${paymentMethod === 'crypto' ? 'border-green-500 bg-green-500/10' : 'border-slate-800 bg-slate-950 hover:bg-slate-800'}`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-8 w-12 rounded bg-white/10 flex items-center justify-center">
+                                            <Coins className="h-4 w-4 text-green-400" />
+                                        </div>
+                                        <div>
+                                            <span className="block font-bold text-white">Pay with Crypto</span>
+                                            <span className="text-xs text-gray-400">USDT · Litecoin · Solana</span>
+                                        </div>
+                                    </div>
+                                    <div className={`h-4 w-4 rounded-full border-[3px] ${paymentMethod === 'crypto' ? 'border-green-500' : 'border-slate-600'}`}></div>
                                 </button>
                                 
                                 <div className="mt-4 rounded-xl bg-slate-900/50 p-4 border border-slate-800">
@@ -373,6 +492,133 @@ const Checkout: React.FC = () => {
                                         {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Confirm & Send Proof'}
                                     </button>
                                 </>
+                            ) : paymentMethod === 'crypto' ? (
+                                <>
+                                    <h2 className="mb-2 text-xl font-bold text-white">Pay with Crypto</h2>
+                                    <p className="mb-6 text-sm text-gray-400">Select a coin, send the exact amount to the address below, then upload your transaction proof.</p>
+
+                                    {/* Coin selector */}
+                                    <div className="mb-6 grid grid-cols-3 gap-2">
+                                        {CRYPTO_COINS.map((coin, i) => (
+                                            <button
+                                                key={coin.id}
+                                                onClick={() => { setCryptoIndex(i); setCopiedAddress(false); }}
+                                                className={`rounded-xl border p-3 text-center transition ${cryptoIndex === i ? 'border-green-500 bg-green-500/10' : 'border-slate-800 bg-slate-950 hover:bg-slate-800'}`}
+                                            >
+                                                <span className="block text-lg font-black" style={{ color: coin.color }}>{coin.symbol}</span>
+                                                <span className="mt-1 block text-[9px] uppercase tracking-wider text-gray-500">{coin.network}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {/* Amount to send */}
+                                    <div className="mb-6 rounded-2xl border border-green-500/30 bg-slate-950 p-4">
+                                        <div className="flex justify-between text-xs uppercase tracking-wider text-gray-500">
+                                            <span>Total (USD)</span>
+                                            <span>Amount to Send</span>
+                                        </div>
+                                        <div className="mt-1 flex items-end justify-between gap-2">
+                                            <span className="text-xl font-bold text-white">${totalCartValue.toFixed(2)}</span>
+                                            <span className="text-right text-xl font-bold" style={{ color: selectedCoin.color }}>
+                                                {cryptoPriceLoaded && cryptoPrice > 0
+                                                    ? `≈ ${cryptoAmount.toFixed(cryptoAmount < 10 ? 4 : 2)} ${selectedCoin.symbol}`
+                                                    : 'Loading price…'}
+                                            </span>
+                                        </div>
+                                        <div className="mt-1 flex justify-between text-[10px] text-gray-500">
+                                            <span>R$ {(totalCartValue * exchangeRate).toFixed(2)}</span>
+                                            <span>1 {selectedCoin.symbol} ≈ ${cryptoPrice > 0 ? cryptoPrice.toFixed(4) : '…'}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Wallet address + QR */}
+                                    <div className="mb-6 flex flex-col items-center">
+                                        <div className="mb-3 rounded-xl bg-white p-3">
+                                            <img
+                                                src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(cryptoAddress)}`}
+                                                alt={`${selectedCoin.symbol} Wallet QR Code`}
+                                                className="h-44 w-44"
+                                            />
+                                        </div>
+                                        <p className="mb-1 text-[10px] font-semibold text-yellow-500/90 text-center">
+                                            {selectedCoin.warning}
+                                        </p>
+                                        <div className="flex w-full items-center gap-2 rounded-lg border border-slate-700 bg-slate-950 p-2">
+                                            <input
+                                                type="text"
+                                                readOnly
+                                                value={cryptoAddress}
+                                                className="flex-1 bg-transparent text-xs text-gray-400 focus:outline-none"
+                                            />
+                                            <button
+                                                onClick={copyCryptoAddress}
+                                                className="rounded p-2 text-green-500 hover:bg-green-500/10"
+                                                title="Copy address"
+                                            >
+                                                {copiedAddress ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                                            </button>
+                                        </div>
+                                        {!isCryptoAddressConfigured(selectedCoin) && (
+                                            <p className="mt-1 text-[10px] text-red-500">
+                                                Wallet address not configured yet by the store owner.
+                                            </p>
+                                        )}
+                                        <p className="mt-1 text-[10px] text-gray-500">
+                                            Scan with Trust Wallet (or any wallet supporting {selectedCoin.network})
+                                        </p>
+                                    </div>
+
+                                    <div className="mb-6">
+                                        <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-gray-500">Contact Email (For Delivery) *</label>
+                                        <input
+                                            type="email"
+                                            value={contactEmail}
+                                            onChange={(e) => {
+                                                setContactEmail(e.target.value);
+                                                if (emailError) setEmailError(false);
+                                            }}
+                                            placeholder="youremail@example.com"
+                                            className={`w-full rounded-lg border bg-slate-950 p-3 text-sm text-white focus:outline-none focus:ring-2 ${emailError ? 'border-red-500 focus:ring-red-500/50' : 'border-slate-700 focus:border-blue-500 focus:ring-blue-500/50'}`}
+                                        />
+                                        {emailError && <p className="mt-1 text-xs text-red-500">Please provide a valid email.</p>}
+                                    </div>
+
+                                    <div className="mb-6 rounded-xl border border-dashed border-slate-700 bg-slate-900/50 p-6 text-center">
+                                        <label className="mb-2 block text-sm font-bold text-white">Attach Proof of Payment</label>
+                                        <p className="mb-4 text-xs text-gray-400">Upload a screenshot of your {selectedCoin.symbol} transaction (TX hash visible).</p>
+
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            id="proof-upload-crypto"
+                                            className="hidden"
+                                            onChange={handleFileChange}
+                                        />
+
+                                        {!proofFile ? (
+                                            <label htmlFor="proof-upload-crypto" className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-sm text-green-400 hover:bg-slate-700 hover:text-white transition">
+                                                <Upload className="h-4 w-4" />
+                                                Select File
+                                            </label>
+                                        ) : (
+                                            <div className="flex flex-col items-center">
+                                                <div className="flex items-center gap-2 text-green-500 font-bold mb-2">
+                                                    <FileCheck className="h-5 w-5" />
+                                                    File Attached
+                                                </div>
+                                                <label htmlFor="proof-upload-crypto" className="text-xs text-gray-500 hover:text-white cursor-pointer underline">Change File</label>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <button
+                                        onClick={handleFinish}
+                                        disabled={!proofFile || submitting}
+                                        className="w-full flex justify-center items-center gap-2 rounded-xl bg-green-600 py-4 font-bold text-white transition hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : `I Sent ${selectedCoin.symbol}`}
+                                    </button>
+                                </>
                             ) : (
                                 <>
                                     <div className="flex flex-col py-4">
@@ -403,7 +649,7 @@ const Checkout: React.FC = () => {
                                         <div className="mb-4 rounded-xl border border-slate-700 bg-slate-950 p-4 text-sm">
                                             {cart.map(item => (
                                                 <div key={item.id} className="flex justify-between py-1 text-gray-300">
-                                                    <span>{item.title} {item.selectedVariant ? `â€” ${item.selectedVariant.name}` : ''} <span className="text-gray-500">x{item.quantity}</span></span>
+                                                    <span>{item.title} {item.selectedVariant ? `— ${item.selectedVariant.category ? `[${item.selectedVariant.category}] ` : ''}${item.selectedVariant.name}` : ''} <span className="text-gray-500">x{item.quantity}</span></span>
                                                     <span>{formatPrice(item.price * item.quantity)}</span>
                                                 </div>
                                             ))}

@@ -18,15 +18,38 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     return <Package className="h-3 w-3 text-blue-400" />;
   };
 
+  // Placeholder elegante usado quando a listagem não traz a imagem (payload otimizado)
+  const renderThumb = () => {
+    const cat = (product.category || '').toLowerCase();
+    let gradient = 'from-blue-600 to-indigo-700';
+    if (cat.includes('script')) gradient = 'from-yellow-500 to-amber-600';
+    if (cat.includes('item')) gradient = 'from-emerald-600 to-teal-700';
+    return (
+      <div className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${gradient} relative`}>
+        <div className="absolute inset-0 opacity-20" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Ccircle cx='30' cy='30' r='18' fill='none' stroke='white' stroke-width='1'/%3E%3Ccircle cx='30' cy='30' r='8' fill='none' stroke='white' stroke-width='1'/%3E%3C/svg%3E")`,
+          backgroundSize: '60px 60px',
+        }} />
+        <span className="text-4xl font-black text-white/30 drop-shadow-lg">
+          {product.title.charAt(0).toUpperCase()}
+        </span>
+      </div>
+    );
+  };
+
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 transition-all duration-300 hover:border-blue-500/50 hover:shadow-2xl hover:shadow-blue-500/10">
       <Link to={`/product/${product.id}`} className="relative aspect-[4/3] w-full overflow-hidden bg-slate-950 block">
-        <img
-          src={product.image}
-          alt={product.title}
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110 opacity-80 group-hover:opacity-100"
-          loading="lazy"
-        />
+        {product.image ? (
+          <img
+            src={product.image}
+            alt={product.title}
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110 opacity-80 group-hover:opacity-100"
+            loading="lazy"
+          />
+        ) : (
+          renderThumb()
+        )}
         {product.featured && (
           <div className="absolute left-3 top-3 rounded-md bg-gradient-to-r from-yellow-500 to-amber-500 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-black shadow-lg">
             Best Seller
