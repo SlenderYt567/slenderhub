@@ -7,6 +7,14 @@ export const config = {
 // Assinatura Express-style (req, res): o @vercel/node (Vercel 58+) não despacha
 // handlers Web API (request: Request) — penduravam com 0 bytes no runtime.
 export default async function handler(req: any, res: any) {
+    // ── PayPal desativado: apenas Pix e Crypto no checkout ──
+    return res.status(503).json({
+        success: false,
+        error: 'PayPal is disabled. Payments via Pix and Crypto only.',
+        disabled: true,
+    });
+    // ─────────────────────────────────────────────────────────
+
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }

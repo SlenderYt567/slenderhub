@@ -24,8 +24,6 @@ const compressImage = (base64: string, maxSize = 800, quality = 0.7): Promise<st
     });
 };
 
-const paypalQrCodeImage = '/paypal-qr.png';
-
 // ---------------------------------------------------------------------------
 // Crypto payments (Trust Wallet)
 // Configure os endereços reais no .env.local:
@@ -96,7 +94,7 @@ const Checkout: React.FC = () => {
     const [copied, setCopied] = useState(false);
     const [proofFile, setProofFile] = useState<string | null>(null);
     const [createdChatId, setCreatedChatId] = useState<string | null>(null);
-    const [paymentMethod, setPaymentMethod] = useState<'pix' | 'international' | 'crypto'>('pix');
+    const [paymentMethod, setPaymentMethod] = useState<'pix' | 'crypto'>('pix');
     const [cryptoIndex, setCryptoIndex] = useState(0);
     const [cryptoPrices, setCryptoPrices] = useState<Record<string, number>>({ tether: 1, litecoin: 0, solana: 0 });
     const [cryptoPriceLoaded, setCryptoPriceLoaded] = useState(false);
@@ -158,14 +156,14 @@ const Checkout: React.FC = () => {
     };
 
     const handleFinish = async () => {
-        if (!proofFile && (paymentMethod === 'pix' || paymentMethod === 'crypto')) {
+        if (!proofFile) {
             alert("Please upload the payment proof to continue.");
             return;
         }
 
-        if ((paymentMethod === 'pix' || paymentMethod === 'crypto') && (!contactEmail || !contactEmail.includes('@'))) {
+        if (!contactEmail || !contactEmail.includes('@')) {
             setEmailError(true);
-            alert("Por favor insira um e-mail vÃ¡lido para entrega.");
+            alert("Por favor insira um e-mail válido para entrega.");
             return;
         }
 
@@ -176,9 +174,7 @@ const Checkout: React.FC = () => {
         const emailToDisplay = contactEmail || user?.email || "";
         const methodLabel = paymentMethod === 'pix'
             ? 'Pix'
-            : paymentMethod === 'crypto'
-                ? `Crypto ${selectedCoin.symbol} (${selectedCoin.network})`
-                : 'PayPal QR';
+            : `Crypto ${selectedCoin.symbol} (${selectedCoin.network})`;
         const customerNameAndEmail = emailToDisplay
             ? `${baseName} (${emailToDisplay}) - ${methodLabel}`
             : `${baseName} - ${methodLabel}`;
@@ -240,12 +236,10 @@ const Checkout: React.FC = () => {
                     <Check className="h-10 w-10" />
                 </div>
                 <h1 className="mb-2 text-3xl font-bold text-white">
-                    {paymentMethod === 'pix' ? 'Proof Received!' : paymentMethod === 'crypto' ? 'Crypto Payment Received!' : 'Order Created!'}
+                    {paymentMethod === 'pix' ? 'Proof Received!' : 'Crypto Payment Received!'}
                 </h1>
                 <p className="mb-8 max-w-md text-gray-400">
-                    {paymentMethod === 'pix' || paymentMethod === 'crypto'
-                        ? "We have received your payment proof. An admin will verify it shortly."
-                        : "Payment confirmed! Check your email or open the support chat below."}
+                    We have received your payment proof. An admin will verify it shortly.
                 </p>
 
                 <div className="flex flex-col gap-4 w-full max-w-xs">
@@ -344,22 +338,6 @@ const Checkout: React.FC = () => {
                                         </div>
                                     </div>
                                     <div className={`h-4 w-4 rounded-full border-[3px] ${paymentMethod === 'pix' ? 'border-blue-500' : 'border-slate-600'}`}></div>
-                                </button>
-
-                                <button
-                                    onClick={() => setPaymentMethod('international')}
-                                    className={`flex w-full items-center justify-between rounded-xl border p-4 text-left transition ${paymentMethod === 'international' ? 'border-indigo-500 bg-indigo-500/10' : 'border-slate-800 bg-slate-950 hover:bg-slate-800'}`}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-8 w-12 rounded bg-white/10 flex items-center justify-center">
-                                            <Globe className="h-4 w-4" />
-                                        </div>
-                                        <div>
-                                            <span className="block font-bold text-white">International (PayPal)</span>
-                                            <span className="text-xs text-gray-400">Total: ${totalCartValue.toFixed(2)} USD</span>
-                                        </div>
-                                    </div>
-                                    <div className={`h-4 w-4 rounded-full border-[3px] ${paymentMethod === 'international' ? 'border-indigo-500' : 'border-slate-600'}`}></div>
                                 </button>
 
                                 <button
@@ -619,85 +597,7 @@ const Checkout: React.FC = () => {
                                         {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : `I Sent ${selectedCoin.symbol}`}
                                     </button>
                                 </>
-                            ) : (
-                                <>
-                                    <div className="flex flex-col py-4">
-                                        <div className="flex items-center gap-3 mb-6">
-                                            <div className="rounded-full bg-blue-500/10 p-3 text-blue-400">
-                                                <Globe className="h-6 w-6" />
-                                            </div>
-                                            <div>
-                                                <h2 className="text-lg font-bold text-white">Pay with PayPal QR</h2>
-                                                <p className="text-xs text-gray-400">Scan the QR code below and confirm your international payment here.</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="mb-6 rounded-2xl border border-indigo-500/30 bg-slate-950 p-4">
-                                            <p className="mb-3 text-sm font-semibold text-white">PayPal QR Code</p>
-                                            <p className="mb-4 text-xs text-gray-400">
-                                                International customers can scan the QR code below to pay directly with PayPal.
-                                            </p>
-                                            <div className="overflow-hidden rounded-2xl bg-white p-3">
-                                                <img
-                                                    src={paypalQrCodeImage}
-                                                    alt="PayPal QR Code"
-                                                    className="mx-auto w-full max-w-sm rounded-xl object-contain"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div className="mb-4 rounded-xl border border-slate-700 bg-slate-950 p-4 text-sm">
-                                            {cart.map(item => (
-                                                <div key={item.id} className="flex justify-between py-1 text-gray-300">
-                                                    <span>{item.title} {item.selectedVariant ? `— ${item.selectedVariant.category ? `[${item.selectedVariant.category}] ` : ''}${item.selectedVariant.name}` : ''} <span className="text-gray-500">x{item.quantity}</span></span>
-                                                    <span>{formatPrice(item.price * item.quantity)}</span>
-                                                </div>
-                                            ))}
-                                            <div className="mt-3 border-t border-slate-700 pt-3 flex flex-col gap-1 font-bold text-white">
-                                                <div className="flex justify-between">
-                                                    <span>Total</span>
-                                                    <span className="text-blue-400">${totalCartValue.toFixed(2)} USD</span>
-                                                </div>
-                                                <div className="flex justify-between text-xs text-gray-500">
-                                                    <span>BRL Equivalent</span>
-                                                    <span>R$ {(totalCartValue * exchangeRate).toFixed(2)}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="mb-4">
-                                            <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-gray-500">Your Email (for order confirmation)</label>
-                                            <input
-                                                type="email"
-                                                value={contactEmail}
-                                                onChange={(e) => setContactEmail(e.target.value)}
-                                                placeholder="youremail@example.com"
-                                                className="w-full rounded-lg border border-slate-700 bg-slate-950 p-3 text-sm text-white focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-500/50"
-                                            />
-                                        </div>
-
-                                        <button
-                                            onClick={handleFinish}
-                                            disabled={submitting || cart.length === 0}
-                                            className="w-full flex justify-center items-center gap-2 rounded-xl bg-indigo-600 py-4 font-bold text-white transition hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : 'I Paid with PayPal QR'}
-                                        </button>
-
-                                        <div className="mt-4 border-t border-slate-800 pt-4 text-center">
-                                            <p className="text-xs text-gray-500 mb-2">Need help with international payment?</p>
-                                            <a
-                                                href="https://discord.gg/2B8TQ7A3MV"
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-2 text-xs text-indigo-400 hover:text-indigo-300 transition"
-                                            >
-                                                <Globe className="h-3 w-3" /> Pay with Crypto via Discord
-                                            </a>
-                                        </div>
-                                    </div>
-                                </>
-                            )}
+                            ) : null}
                         </>
                     )}
                 </div>

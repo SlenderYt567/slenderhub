@@ -47,7 +47,7 @@ const Contact: React.FC = () => {
                     <a href="https://discord.gg/2B8TQ7A3MV" target="_blank" rel="noopener noreferrer" className="mx-1 font-bold text-indigo-400 hover:underline">Discord Server</a>.
                 </p>
                 <p className="mt-1 text-sm text-gray-400">
-                    We accept PayPal, Crypto, and other international methods via manual support tickets.
+                    We accept Crypto and other international methods via manual support tickets.
                 </p>
             </div>
          </div>
