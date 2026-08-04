@@ -1,7 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 
 export const config = {
-    runtime: 'edge',
+    // Node.js runtime: Vercel 58+ agrupa rotas em namespaces compartilhados.
+    // Manter edge aqui faz o bundle edge puxar módulos Node (crypto) de outras
+    // rotas do namespace e quebrar o build ("unsupported modules: crypto").
+    runtime: 'nodejs',
 };
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
