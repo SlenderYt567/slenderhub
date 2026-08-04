@@ -2,7 +2,9 @@ import { createClient } from '@supabase/supabase-js';
 import { createHmac, createHash } from 'crypto';
 
 export const config = {
-    runtime: 'edge',
+    // Node.js runtime obrigatório: usa createHmac/createHash/Buffer do Node crypto,
+    // que não existem no Edge runtime do Vercel (Web Crypto é assíncrono e limitado).
+    runtime: 'nodejs',
 };
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
