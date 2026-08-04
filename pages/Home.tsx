@@ -68,10 +68,6 @@ const Home: React.FC = () => {
               <Terminal className="h-5 w-5" />
               Get Scripts
             </Link>
-            <Link to="/pricing" className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-500/50 bg-blue-500/10 px-8 py-3.5 text-base font-bold text-blue-400 backdrop-blur-sm transition hover:bg-blue-500/20 hover:text-blue-300">
-              <Star className="h-5 w-5" />
-              Pricing (Key System)
-            </Link>
           </div>
 
           {/* 10k+ Sales Indicator */}
