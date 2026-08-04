@@ -9,13 +9,10 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const HMAC_SECRET = process.env.SCRIPT_HMAC_SECRET;
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-    throw new Error('[Obfuscate] Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in environment');
-}
-
-if (!HMAC_SECRET) {
-    throw new Error('[Obfuscate] Missing SCRIPT_HMAC_SECRET in environment — set a random 64-char string');
-}
+// NOTA: não lançamos erro no LOAD do módulo. Se SCRIPT_HMAC_SECRET/SUPABASE_URL
+// não estiverem setados, o runtime da Vercel retorna FUNCTION_INVOCATION_FAILED
+// (500 vazio) ANTES do handler rodar. O check de env acontece dentro do handler,
+// no fluxo real de obfuscação (abaixo do guard de desativação).
 
 function escapeRegex(str: string): string {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -78,6 +75,13 @@ export default async function handler(req: any, res: any) {
     // ────────────────────────────────────────────────────────────
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method Not Allowed' });
+    }
+
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+        return res.status(500).json({ error: 'Server configuration error: missing Supabase env' });
+    }
+    if (!HMAC_SECRET) {
+        return res.status(500).json({ error: 'Server configuration error: missing SCRIPT_HMAC_SECRET' });
     }
 
     try {

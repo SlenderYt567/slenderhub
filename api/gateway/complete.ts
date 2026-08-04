@@ -11,9 +11,8 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const HMAC_SECRET = process.env.SCRIPT_HMAC_SECRET;
 
-if (!HMAC_SECRET) {
-    throw new Error('[Gateway Complete] Missing SCRIPT_HMAC_SECRET in environment');
-}
+// NOTA: não lançamos erro no LOAD do módulo (causaria FUNCTION_INVOCATION_FAILED
+// na Vercel se a env faltar). O check de SCRIPT_HMAC_SECRET acontece no handler.
 
 /**
  * Gera um token de gateway HMAC válido por 1 hora
@@ -36,6 +35,10 @@ export default async function handler(req: any, res: any) {
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
         return res.status(500).json({ success: false, error: 'Server configuration error' });
+    }
+
+    if (!HMAC_SECRET) {
+        return res.status(500).json({ success: false, error: 'Server misconfiguration: SCRIPT_HMAC_SECRET not set' });
     }
 
     try {
