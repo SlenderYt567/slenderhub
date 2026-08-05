@@ -142,6 +142,15 @@ const Admin: React.FC = () => {
     }
   };
 
+  // Edita stock de uma variante diretamente na lista (0 = esgotado, vazio = ilimitado)
+  const updateVariantStock = (id: string, val: string) => {
+    setVariants(variants.map(v =>
+      v.id === id
+        ? { ...v, stock: val === '' ? undefined : Math.max(0, parseInt(val) || 0) }
+        : v
+    ));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -267,6 +276,18 @@ const Admin: React.FC = () => {
                                 ? `R$ ${(v.price * exchangeRate).toFixed(2)}`
                                 : `$${v.price.toFixed(2)}`}
                             </span>
+                            <label className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                              Stock
+                              <input
+                                type="number"
+                                min={0}
+                                placeholder="∞"
+                                title="Stock da variante: 0 = esgotado, vazio = ilimitado"
+                                className="w-16 rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-white placeholder-gray-600 focus:border-blue-500 focus:outline-none"
+                                value={v.stock ?? ''}
+                                onChange={(e) => updateVariantStock(v.id, e.target.value)}
+                              />
+                            </label>
                             {v.stock != null && v.stock <= 0 && (
                               <span className="rounded bg-red-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-500 ring-1 ring-red-500/40">Esgotado</span>
                             )}
