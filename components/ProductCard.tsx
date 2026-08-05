@@ -11,6 +11,8 @@ interface ProductCardProps {
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const { addToCart, isAuthenticated, deleteProduct, formatPrice } = useStore();
 
+  const soldOut = product.stock <= 0;
+
   const getCategoryIcon = (cat: string) => {
     const c = cat.toLowerCase();
     if (c.includes('script')) return <Zap className="h-3 w-3 text-yellow-400" />;
@@ -44,11 +46,14 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           <img
             src={product.image}
             alt={product.title}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110 opacity-80 group-hover:opacity-100"
+            className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-110 opacity-80 group-hover:opacity-100 ${soldOut ? 'grayscale' : ''}`}
             loading="lazy"
           />
         ) : (
           renderThumb()
+        )}
+        {soldOut && (
+          <div className="absolute inset-0 bg-black/50" />
         )}
         {product.featured && (
           <div className="absolute left-3 top-3 rounded-md bg-gradient-to-r from-yellow-500 to-amber-500 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-black shadow-lg">
@@ -59,6 +64,15 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           {getCategoryIcon(product.category)}
           {product.category}
         </div>
+
+        {/* Sold out overlay badge */}
+        {soldOut && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="rounded-lg bg-red-600 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white shadow-lg shadow-red-600/40">
+              Esgotado
+            </span>
+          </div>
+        )}
         
         {/* Overlay on hover */}
         <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
@@ -104,10 +118,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           ) : (
             <button
               onClick={() => addToCart(product)}
-              className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-bold text-slate-950 transition hover:bg-blue-500 hover:text-white hover:scale-105 active:scale-95"
+              disabled={soldOut}
+              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition ${soldOut ? 'cursor-not-allowed bg-slate-800 text-gray-500' : 'bg-white text-slate-950 hover:bg-blue-500 hover:text-white hover:scale-105 active:scale-95'}`}
             >
-              <ShoppingCart className="h-4 w-4" />
-              Add
+              {soldOut ? <Package className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
+              {soldOut ? 'Esgotado' : 'Add'}
             </button>
           )}
         </div>

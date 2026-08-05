@@ -46,6 +46,8 @@ const ProductDetails: React.FC = () => {
 
   const currentPrice = getSelectedVariant() ? getSelectedVariant()!.price : product.price;
 
+  const soldOut = product.stock <= 0;
+
   const handleAddToCart = () => {
     addToCart(product, quantity, getSelectedVariant());
   };
@@ -99,6 +101,11 @@ const ProductDetails: React.FC = () => {
                 {product.featured && (
                     <span className="inline-flex items-center rounded-full bg-red-500/10 px-2.5 py-0.5 text-xs font-medium uppercase tracking-wide text-red-500">
                         Hot
+                    </span>
+                )}
+                {soldOut && (
+                    <span className="inline-flex items-center rounded-full bg-red-500/15 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-red-500 ring-1 ring-red-500/40">
+                        Esgotado
                     </span>
                 )}
             </div>
@@ -202,17 +209,25 @@ const ProductDetails: React.FC = () => {
             <div className="mt-8 flex flex-col gap-4 sm:flex-row">
                 <button 
                     onClick={handleBuyNow}
-                    className="flex-1 rounded-xl bg-blue-600 px-8 py-4 text-base font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-500 hover:translate-y-[-2px]"
+                    disabled={soldOut}
+                    className={`flex-1 rounded-xl px-8 py-4 text-base font-bold transition ${soldOut ? 'cursor-not-allowed bg-slate-800 text-gray-500' : 'bg-blue-600 text-white shadow-lg shadow-blue-600/25 hover:bg-blue-500 hover:translate-y-[-2px]'}`}
                 >
-                    Buy Now
+                    {soldOut ? 'Esgotado' : 'Buy Now'}
                 </button>
                 <button 
                     onClick={handleAddToCart}
-                    className="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-8 py-4 text-base font-bold text-white transition hover:bg-slate-800 hover:translate-y-[-2px]"
+                    disabled={soldOut}
+                    className={`flex-1 rounded-xl border px-8 py-4 text-base font-bold transition ${soldOut ? 'cursor-not-allowed border-slate-800 bg-slate-900 text-gray-500' : 'border-slate-700 bg-slate-900 text-white hover:bg-slate-800 hover:translate-y-[-2px]'}`}
                 >
-                    Add to Cart
+                    {soldOut ? 'Esgotado' : 'Add to Cart'}
                 </button>
             </div>
+
+            {soldOut && (
+                <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-400">
+                    Este produto está esgotado no momento. Fale conosco no Discord para saber quando haverá reposição.
+                </div>
+            )}
 
             {/* Trust Badges */}
             <div className="mt-8 grid grid-cols-2 gap-4 text-xs text-gray-500">

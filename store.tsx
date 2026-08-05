@@ -10,6 +10,8 @@ interface StoreContextType {
   cart: CartItem[];
   getProductDetail: (id: string) => Promise<Product | null>;
   addToCart: (product: Product, quantity?: number, variant?: any) => void;
+  /** Retorna true quando o produto está esgotado (stock <= 0) */
+  isSoldOut: (p: { stock: number }) => boolean;
   removeFromCart: (productId: string) => void;
   clearCart: () => void;
   addProduct: (product: Product) => Promise<boolean>;
@@ -253,7 +255,15 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
 
+  // Produto esgotado = stock <= 0 (0 = marcado como esgotado no admin)
+  const isSoldOut = (p: { stock: number }) => p.stock <= 0;
+
   const addToCart = (product: Product, quantity = 1, variant?: any) => {
+    if (isSoldOut(product)) {
+      showToast(`"${product.title}" está esgotado no momento.`, 'error');
+      return;
+    }
+
     setCart((prev) => {
       const existing = prev.find((item) => {
         if (variant) {
@@ -570,6 +580,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         exchangeRate,
         formatPrice,
         showToast,
+        isSoldOut,
         loading
       }}
     >

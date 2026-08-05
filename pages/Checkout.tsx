@@ -110,6 +110,9 @@ const Checkout: React.FC = () => {
     const cryptoPrice = cryptoPrices[selectedCoin.id] || 0;
     const cryptoAmount = cryptoPrice > 0 ? (totalCartValue / cryptoPrice) : 0;
 
+    // Itens do carrinho que ficaram esgotados (stock <= 0)
+    const soldOutItems = cart.filter(item => item.stock <= 0);
+
     // Live crypto prices (USD) via CoinGecko
     useEffect(() => {
         fetch('https://api.coingecko.com/api/v3/simple/price?ids=tether,litecoin,solana&vs_currencies=usd')
@@ -291,6 +294,11 @@ const Checkout: React.FC = () => {
                                             {item.selectedVariant.category ? `[${item.selectedVariant.category}] ` : ''}{item.selectedVariant.name}
                                         </span>
                                     )}
+                                    {item.stock <= 0 && (
+                                        <span className="mt-1 inline-flex w-fit items-center rounded-md bg-red-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-500 ring-1 ring-red-500/40">
+                                            Esgotado — remova este item
+                                        </span>
+                                    )}
                                 </div>
                                 <span className="font-medium text-white">
                                     {formatPrice(item.price * item.quantity)}
@@ -375,9 +383,15 @@ const Checkout: React.FC = () => {
                                 </div>
                             </div>
 
+                            {soldOutItems.length > 0 && (
+                                <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm font-medium text-red-400">
+                                    Alguns itens do seu carrinho estão esgotados. Remova-os para continuar com o pagamento.
+                                </div>
+                            )}
+
                             <button
                                 onClick={handlePay}
-                                disabled={loading || cart.length === 0}
+                                disabled={loading || cart.length === 0 || soldOutItems.length > 0}
                                 className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-4 font-bold text-white transition hover:bg-blue-500 disabled:opacity-50"
                             >
                                 {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Continue'}
