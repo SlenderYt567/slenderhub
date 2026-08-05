@@ -10,7 +10,7 @@ const Cart: React.FC = () => {
   // Itens esgotados (produto stock<=0 ou variante stock definido e <=0)
   const soldOutItems = cart.filter(item =>
     item.selectedVariant
-      ? item.selectedVariant.stock !== undefined && item.selectedVariant.stock <= 0
+      ? item.selectedVariant.stock != null && item.selectedVariant.stock <= 0
       : item.stock <= 0
   );
 
@@ -69,7 +69,7 @@ const Cart: React.FC = () => {
                       </span>
                       {(
                         item.selectedVariant
-                          ? item.selectedVariant.stock !== undefined && item.selectedVariant.stock <= 0
+                          ? item.selectedVariant.stock != null && item.selectedVariant.stock <= 0
                           : item.stock <= 0
                       ) && (
                         <span className="inline-block rounded bg-red-500/15 px-2 py-0.5 text-xs font-bold text-red-500 mt-1 ml-1 ring-1 ring-red-500/40">

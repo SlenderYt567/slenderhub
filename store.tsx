@@ -13,7 +13,7 @@ interface StoreContextType {
   /** Retorna true quando o produto está esgotado (stock <= 0) */
   isSoldOut: (p: { stock: number }) => boolean;
   /** Retorna true quando a variante está esgotada (stock definido e <= 0) */
-  isVariantSoldOut: (v: { stock?: number }) => boolean;
+  isVariantSoldOut: (v: { stock?: number | null }) => boolean;
   removeFromCart: (productId: string) => void;
   clearCart: () => void;
   addProduct: (product: Product) => Promise<boolean>;
@@ -260,8 +260,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   // Produto esgotado = stock <= 0 (0 = marcado como esgotado no admin)
   const isSoldOut = (p: { stock: number }) => p.stock <= 0;
 
-  // Variante esgotada = stock definido e <= 0 (undefined = disponível / dados antigos)
-  const isVariantSoldOut = (v: { stock?: number }) => v.stock !== undefined && v.stock <= 0;
+  // Variante esgotada = stock definido e <= 0 (null/undefined = disponível / dados antigos)
+  const isVariantSoldOut = (v: { stock?: number | null }) => v.stock != null && v.stock <= 0;
 
   const addToCart = (product: Product, quantity = 1, variant?: any) => {
     if (isSoldOut(product)) {
@@ -367,7 +367,12 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
 
     // Handle variants: Delete all old ones and re-insert
-    await supabase.from('product_variants').delete().eq('product_id', updatedProduct.id);
+    const { error: delErr } = await supabase.from('product_variants').delete().eq('product_id', updatedProduct.id);
+    if (delErr) {
+      console.error('Error deleting variants:', delErr);
+      setLoading(false);
+      return false;
+    }
 
     if (updatedProduct.variants && updatedProduct.variants.length > 0) {
       const variantsToInsert = updatedProduct.variants.map(v => ({
@@ -379,7 +384,12 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         category: v.category || null,
         stock: v.stock ?? null
       }));
-      await supabase.from('product_variants').insert(variantsToInsert);
+      const { error: insErr } = await supabase.from('product_variants').insert(variantsToInsert);
+      if (insErr) {
+        console.error('Error inserting variants:', insErr);
+        setLoading(false);
+        return false;
+      }
     }
 
     setProducts((prev) => prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p)));

@@ -113,7 +113,7 @@ const Checkout: React.FC = () => {
     // Itens do carrinho que ficaram esgotados (produto stock<=0 ou variante stock definido e <=0)
     const soldOutItems = cart.filter(item =>
       item.selectedVariant
-        ? item.selectedVariant.stock !== undefined && item.selectedVariant.stock <= 0
+        ? item.selectedVariant.stock != null && item.selectedVariant.stock <= 0
         : item.stock <= 0
     );
 
@@ -300,7 +300,7 @@ const Checkout: React.FC = () => {
                                     )}
                                     {(
                                         item.selectedVariant
-                                            ? item.selectedVariant.stock !== undefined && item.selectedVariant.stock <= 0
+                                            ? item.selectedVariant.stock != null && item.selectedVariant.stock <= 0
                                             : item.stock <= 0
                                     ) && (
                                         <span className="mt-1 inline-flex w-fit items-center rounded-md bg-red-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-500 ring-1 ring-red-500/40">

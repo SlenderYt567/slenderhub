@@ -129,7 +129,7 @@ const Admin: React.FC = () => {
       price: variantPriceInInputCurrency,
       image: variant.image || '',
       category: variant.category || '',
-      stock: variant.stock === undefined ? '' : variant.stock.toString()
+      stock: variant.stock == null ? '' : variant.stock.toString()
     });
     setEditingVariantId(variant.id);
   };
@@ -267,7 +267,7 @@ const Admin: React.FC = () => {
                                 ? `R$ ${(v.price * exchangeRate).toFixed(2)}`
                                 : `$${v.price.toFixed(2)}`}
                             </span>
-                            {v.stock !== undefined && v.stock <= 0 && (
+                            {v.stock != null && v.stock <= 0 && (
                               <span className="rounded bg-red-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-500 ring-1 ring-red-500/40">Esgotado</span>
                             )}
                           </div>
