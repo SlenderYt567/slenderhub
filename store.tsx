@@ -114,7 +114,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [messages, setMessages] = useState<ChatMessage[]>([]);
 
   // Product cache (sessionStorage) — evita refetch no reload/navegação
-  const PRODUCTS_CACHE_KEY = 'slenderhub_products_v1';
+  const PRODUCTS_CACHE_KEY = 'slenderhub_products_v2';
   const PRODUCTS_CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 
   // FETCH DATA ON LOAD
@@ -193,11 +193,11 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     setLoading(true);
     try {
-      // Listagem NÃO busca a coluna image (imagens base64 gigantes no banco):
-      // ProductCard usa placeholder elegante e ProductDetails busca a imagem on-demand.
+      // Listagem busca a coluna image para exibir as fotos dos produtos
+      // nos cards (Home). Se o payload ficar pesado, reavaliar com storage.
       const { data, error } = await supabase
         .from('products')
-        .select('id,title,description,price,category,stock,featured,created_at,variants:product_variants(id,product_id,name,price,category,created_at)')
+        .select('id,title,description,price,image,category,stock,featured,created_at,variants:product_variants(id,product_id,name,price,category,created_at)')
         .order('created_at', { ascending: false });
 
       if (error) console.error('Error fetching products:', error);
