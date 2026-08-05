@@ -110,8 +110,12 @@ const Checkout: React.FC = () => {
     const cryptoPrice = cryptoPrices[selectedCoin.id] || 0;
     const cryptoAmount = cryptoPrice > 0 ? (totalCartValue / cryptoPrice) : 0;
 
-    // Itens do carrinho que ficaram esgotados (stock <= 0)
-    const soldOutItems = cart.filter(item => item.stock <= 0);
+    // Itens do carrinho que ficaram esgotados (produto stock<=0 ou variante stock definido e <=0)
+    const soldOutItems = cart.filter(item =>
+      item.selectedVariant
+        ? item.selectedVariant.stock !== undefined && item.selectedVariant.stock <= 0
+        : item.stock <= 0
+    );
 
     // Live crypto prices (USD) via CoinGecko
     useEffect(() => {
@@ -294,7 +298,11 @@ const Checkout: React.FC = () => {
                                             {item.selectedVariant.category ? `[${item.selectedVariant.category}] ` : ''}{item.selectedVariant.name}
                                         </span>
                                     )}
-                                    {item.stock <= 0 && (
+                                    {(
+                                        item.selectedVariant
+                                            ? item.selectedVariant.stock !== undefined && item.selectedVariant.stock <= 0
+                                            : item.stock <= 0
+                                    ) && (
                                         <span className="mt-1 inline-flex w-fit items-center rounded-md bg-red-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-500 ring-1 ring-red-500/40">
                                             Esgotado — remova este item
                                         </span>

@@ -12,6 +12,8 @@ interface StoreContextType {
   addToCart: (product: Product, quantity?: number, variant?: any) => void;
   /** Retorna true quando o produto está esgotado (stock <= 0) */
   isSoldOut: (p: { stock: number }) => boolean;
+  /** Retorna true quando a variante está esgotada (stock definido e <= 0) */
+  isVariantSoldOut: (v: { stock?: number }) => boolean;
   removeFromCart: (productId: string) => void;
   clearCart: () => void;
   addProduct: (product: Product) => Promise<boolean>;
@@ -167,7 +169,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('id,title,description,price,image,category,stock,featured,created_at,variants:product_variants(id,product_id,name,price,image,category,created_at)')
+        .select('id,title,description,price,image,category,stock,featured,created_at,variants:product_variants(id,product_id,name,price,image,category,stock,created_at)')
         .eq('id', id)
         .maybeSingle();
       if (error) console.error('Error fetching product detail:', error);
@@ -199,7 +201,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       // nos cards (Home). Se o payload ficar pesado, reavaliar com storage.
       const { data, error } = await supabase
         .from('products')
-        .select('id,title,description,price,image,category,stock,featured,created_at,variants:product_variants(id,product_id,name,price,category,created_at)')
+        .select('id,title,description,price,image,category,stock,featured,created_at,variants:product_variants(id,product_id,name,price,category,stock,created_at)')
         .order('created_at', { ascending: false });
 
       if (error) console.error('Error fetching products:', error);
@@ -258,9 +260,16 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   // Produto esgotado = stock <= 0 (0 = marcado como esgotado no admin)
   const isSoldOut = (p: { stock: number }) => p.stock <= 0;
 
+  // Variante esgotada = stock definido e <= 0 (undefined = disponível / dados antigos)
+  const isVariantSoldOut = (v: { stock?: number }) => v.stock !== undefined && v.stock <= 0;
+
   const addToCart = (product: Product, quantity = 1, variant?: any) => {
     if (isSoldOut(product)) {
       showToast(`"${product.title}" está esgotado no momento.`, 'error');
+      return;
+    }
+    if (variant && isVariantSoldOut(variant)) {
+      showToast(`"${variant.name}" está esgotado no momento.`, 'error');
       return;
     }
 
@@ -327,7 +336,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         name: v.name,
         price: v.price,
         image: v.image,
-        category: v.category || null
+        category: v.category || null,
+        stock: v.stock ?? null
       }));
       await supabase.from('product_variants').insert(variantsToInsert);
     }
@@ -366,7 +376,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         name: v.name,
         price: v.price,
         image: v.image,
-        category: v.category || null
+        category: v.category || null,
+        stock: v.stock ?? null
       }));
       await supabase.from('product_variants').insert(variantsToInsert);
     }
@@ -581,6 +592,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         formatPrice,
         showToast,
         isSoldOut,
+        isVariantSoldOut,
         loading
       }}
     >

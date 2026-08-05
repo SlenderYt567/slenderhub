@@ -21,7 +21,7 @@ const EditProduct: React.FC = () => {
 
   const [inputCurrency, setInputCurrency] = useState<'USD' | 'BRL'>('USD');
   const [variants, setVariants] = useState<ProductVariant[]>([]);
-  const [newVariant, setNewVariant] = useState({ name: '', price: '', image: '', category: '' });
+  const [newVariant, setNewVariant] = useState({ name: '', price: '', image: '', category: '', stock: '' });
   const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
 
   // Sugestões de categorias internas do produto (ex: Pet Simulator)
@@ -112,13 +112,17 @@ const EditProduct: React.FC = () => {
     const rawPrice = parseFloat(newVariant.price);
     const finalPriceUSD = inputCurrency === 'BRL' ? rawPrice / exchangeRate : rawPrice;
 
+    // Stock da variante: vazio = disponível (undefined), 0 = esgotada
+    const stockVal = newVariant.stock === '' ? undefined : Math.max(0, parseInt(newVariant.stock) || 0);
+
     if (editingVariantId) {
       setVariants(variants.map(v => v.id === editingVariantId ? {
         ...v,
         name: newVariant.name,
         price: finalPriceUSD,
         image: newVariant.image || undefined,
-        category: newVariant.category || undefined
+        category: newVariant.category || undefined,
+        stock: stockVal
       } : v));
       setEditingVariantId(null);
     } else {
@@ -127,11 +131,12 @@ const EditProduct: React.FC = () => {
         name: newVariant.name,
         price: finalPriceUSD,
         image: newVariant.image || undefined,
-        category: newVariant.category || undefined
+        category: newVariant.category || undefined,
+        stock: stockVal
       };
       setVariants([...variants, variant]);
     }
-    setNewVariant({ name: '', price: '', image: '', category: '' });
+    setNewVariant({ name: '', price: '', image: '', category: '', stock: '' });
   };
 
   const editVariant = (variant: ProductVariant) => {
@@ -143,7 +148,8 @@ const EditProduct: React.FC = () => {
       name: variant.name,
       price: variantPriceInInputCurrency,
       image: variant.image || '',
-      category: variant.category || ''
+      category: variant.category || '',
+      stock: variant.stock === undefined ? '' : variant.stock.toString()
     });
     setEditingVariantId(variant.id);
   };
@@ -152,7 +158,7 @@ const EditProduct: React.FC = () => {
     setVariants(variants.filter(v => v.id !== id));
     if (editingVariantId === id) {
       setEditingVariantId(null);
-      setNewVariant({ name: '', price: '', image: '', category: '' });
+      setNewVariant({ name: '', price: '', image: '', category: '', stock: '' });
     }
   };
 
@@ -270,6 +276,9 @@ const EditProduct: React.FC = () => {
                                 ? `R$ ${(v.price * exchangeRate).toFixed(2)}`
                                 : `$${v.price.toFixed(2)}`}
                             </span>
+                            {v.stock !== undefined && v.stock <= 0 && (
+                              <span className="rounded bg-red-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-500 ring-1 ring-red-500/40">Esgotado</span>
+                            )}
                           </div>
                           <div className="flex items-center gap-2">
                             <button type="button" onClick={() => editVariant(v)} className="text-blue-500 hover:text-white">
@@ -322,6 +331,14 @@ const EditProduct: React.FC = () => {
                 value={newVariant.price}
                 onChange={(e) => setNewVariant({ ...newVariant, price: e.target.value })}
               />
+              <input
+                type="number"
+                min={0}
+                placeholder="Stock (0=esgotado)"
+                className="w-36 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                value={newVariant.stock}
+                onChange={(e) => setNewVariant({ ...newVariant, stock: e.target.value })}
+              />
               <button
                 type="button"
                 onClick={handleAddVariant}
@@ -334,7 +351,7 @@ const EditProduct: React.FC = () => {
                   type="button"
                   onClick={() => {
                     setEditingVariantId(null);
-                    setNewVariant({ name: '', price: '', image: '' });
+                    setNewVariant({ name: '', price: '', image: '', category: '', stock: '' });
                   }}
                   className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-bold text-white hover:bg-slate-600"
                 >

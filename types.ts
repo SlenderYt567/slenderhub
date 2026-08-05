@@ -7,6 +7,8 @@ export interface ProductVariant {
   image?: string;
   /** Subcategoria da variante (ex: Gargantuan, Diamonds Huges, Titanics) */
   category?: string;
+  /** Stock da variante. 0 = esgotada. undefined = disponível (variantes antigas sem stock). */
+  stock?: number;
 }
 
 export interface Product {

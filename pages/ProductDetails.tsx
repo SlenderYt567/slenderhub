@@ -7,7 +7,7 @@ import { ShoppingCart, ArrowLeft, ShieldCheck, Zap, Package, Minus, Plus, Credit
 const ProductDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { products, getProductDetail, addToCart, formatPrice, currency } = useStore();
+  const { products, getProductDetail, addToCart, formatPrice, currency, isVariantSoldOut } = useStore();
   
   const [product, setProduct] = useState(products.find(p => p.id === id));
   const [quantity, setQuantity] = useState(1);
@@ -16,9 +16,10 @@ const ProductDetails: React.FC = () => {
   useEffect(() => {
     const found = products.find(p => p.id === id);
     setProduct(found);
-    // Select first variant by default if exists
+    // Select first AVAILABLE variant by default (skip sold out ones)
     if (found?.variants && found.variants.length > 0) {
-        setSelectedVariantId(found.variants[0].id);
+        const firstAvailable = found.variants.find(v => !isVariantSoldOut(v)) ?? found.variants[0];
+        setSelectedVariantId(firstAvailable.id);
     }
 
     // A listagem não traz a coluna image (payload ~6MB de base64):
@@ -28,7 +29,7 @@ const ProductDetails: React.FC = () => {
         if (detail) setProduct(prev => prev ? { ...prev, ...detail } : detail);
       });
     }
-  }, [id, products, getProductDetail]);
+  }, [id, products, getProductDetail, isVariantSoldOut]);
 
   if (!product) {
     return (
@@ -44,9 +45,16 @@ const ProductDetails: React.FC = () => {
       return product.variants.find(v => v.id === selectedVariantId);
   };
 
-  const currentPrice = getSelectedVariant() ? getSelectedVariant()!.price : product.price;
+  const currentVariant = getSelectedVariant();
+  const currentPrice = currentVariant ? currentVariant.price : product.price;
 
-  const soldOut = product.stock <= 0;
+  // Disponibilidade: produto inteiro esgotado OU variante selecionada esgotada
+  const productSoldOut = product.stock <= 0;
+  const allVariantsSoldOut = product.variants && product.variants.length > 0
+    ? product.variants.every(v => isVariantSoldOut(v))
+    : productSoldOut;
+  const selectedVariantSoldOut = currentVariant ? isVariantSoldOut(currentVariant) : productSoldOut;
+  const soldOut = allVariantsSoldOut || selectedVariantSoldOut;
 
   const handleAddToCart = () => {
     addToCart(product, quantity, getSelectedVariant());
@@ -149,8 +157,11 @@ const ProductDetails: React.FC = () => {
                                     <button 
                                         key={variant.id}
                                         onClick={() => setSelectedVariantId(variant.id)}
+                                        disabled={isVariantSoldOut(variant)}
                                         className={`relative flex items-center justify-between rounded-xl border p-4 text-left transition overflow-hidden group ${
-                                            selectedVariantId === variant.id 
+                                            isVariantSoldOut(variant)
+                                            ? 'border-slate-800/50 bg-slate-900/50 opacity-60 cursor-not-allowed grayscale'
+                                            : selectedVariantId === variant.id 
                                             ? 'border-blue-500 bg-blue-500/10 ring-1 ring-blue-500' 
                                             : 'border-slate-800 bg-slate-900 hover:border-slate-700'
                                         }`}
@@ -161,6 +172,12 @@ const ProductDetails: React.FC = () => {
                                               className="absolute inset-0 opacity-10 bg-cover bg-center transition-opacity group-hover:opacity-20"
                                               style={{ backgroundImage: `url(${variant.image})` }}
                                             />
+                                        )}
+
+                                        {isVariantSoldOut(variant) && (
+                                            <span className="absolute right-3 top-3 z-20 rounded-md bg-red-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow-lg shadow-red-600/40">
+                                                Esgotado
+                                            </span>
                                         )}
 
                                         <div className="flex items-center gap-3 relative z-10 w-full">

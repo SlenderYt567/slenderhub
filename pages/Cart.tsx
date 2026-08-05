@@ -7,6 +7,13 @@ const Cart: React.FC = () => {
   const { cart, removeFromCart, totalCartValue, formatPrice, isAuthenticated } = useStore();
   const navigate = useNavigate();
 
+  // Itens esgotados (produto stock<=0 ou variante stock definido e <=0)
+  const soldOutItems = cart.filter(item =>
+    item.selectedVariant
+      ? item.selectedVariant.stock !== undefined && item.selectedVariant.stock <= 0
+      : item.stock <= 0
+  );
+
   if (cart.length === 0) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 px-4 text-center">
@@ -60,6 +67,15 @@ const Cart: React.FC = () => {
                       <span className="inline-block rounded bg-slate-800 px-2 py-0.5 text-xs text-gray-400 capitalize mt-1">
                         {item.category}
                       </span>
+                      {(
+                        item.selectedVariant
+                          ? item.selectedVariant.stock !== undefined && item.selectedVariant.stock <= 0
+                          : item.stock <= 0
+                      ) && (
+                        <span className="inline-block rounded bg-red-500/15 px-2 py-0.5 text-xs font-bold text-red-500 mt-1 ml-1 ring-1 ring-red-500/40">
+                          Esgotado
+                        </span>
+                      )}
                     </div>
                     <p className="text-lg font-bold text-blue-400">{formatPrice(item.price * item.quantity)}</p>
                   </div>
@@ -100,6 +116,12 @@ const Cart: React.FC = () => {
               <span className="text-blue-400">{formatPrice(totalCartValue)}</span>
             </div>
 
+            {soldOutItems.length > 0 && (
+              <div className="mt-3 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-xs font-medium text-red-400">
+                Alguns itens do seu carrinho estão esgotados. Remova-os antes de prosseguir para o pagamento.
+              </div>
+            )}
+
             <div className="space-y-3">
               <button
                 onClick={() => {
@@ -109,7 +131,8 @@ const Cart: React.FC = () => {
                     navigate('/login');
                   }
                 }}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 font-bold text-white transition hover:bg-blue-500 hover:shadow-lg hover:shadow-blue-500/25"
+                disabled={soldOutItems.length > 0}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 font-bold text-white transition hover:bg-blue-500 hover:shadow-lg hover:shadow-blue-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Proceed to Payment <ArrowRight className="h-5 w-5" />
               </button>
