@@ -44,11 +44,11 @@ const Navbar: React.FC = () => {
             Contact
           </Link>
           <Link to="/scripts" className={`hidden text-sm font-medium transition md:block ${isActive('/scripts')}`}>
-            Script
+            Loja
           </Link>
           {isAuthenticated && (
             <Link to="/admin-dashboard" className={`hidden text-sm font-medium transition md:block ${isActive('/admin-dashboard')}`}>
-              Developer Panel
+              Painel Admin
             </Link>
           )}
 
@@ -127,10 +127,10 @@ const Navbar: React.FC = () => {
         <div className="md:hidden border-t border-slate-800 bg-slate-950 px-4 py-4 space-y-3 shadow-xl">
           <Link to="/" onClick={() => setIsMenuOpen(false)} className={`block text-base font-medium ${isActive('/')}`}>Shop</Link>
           <Link to="/contact" onClick={() => setIsMenuOpen(false)} className={`block text-base font-medium ${isActive('/contact')}`}>Contact</Link>
-          <Link to="/scripts" onClick={() => setIsMenuOpen(false)} className={`block text-base font-medium ${isActive('/scripts')}`}>Script</Link>
+          <Link to="/scripts" onClick={() => setIsMenuOpen(false)} className={`block text-base font-medium ${isActive('/scripts')}`}>Loja</Link>
           
           {isAuthenticated && (
-            <Link to="/admin-dashboard" onClick={() => setIsMenuOpen(false)} className={`block text-base font-medium ${isActive('/admin-dashboard')}`}>Developer Panel</Link>
+            <Link to="/admin-dashboard" onClick={() => setIsMenuOpen(false)} className={`block text-base font-medium ${isActive('/admin-dashboard')}`}>Painel Admin</Link>
           )}
 
           {isAdmin && (

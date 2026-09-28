@@ -14,7 +14,7 @@ const Admin: React.FC = () => {
     description: '',
     price: '',
     image: '',
-    category: 'script',
+    category: 'gamepass',
     stock: '',
   });
 
@@ -226,7 +226,7 @@ const Admin: React.FC = () => {
                 type="text"
                 required
                 className="w-full rounded-lg border border-slate-700 bg-slate-950 py-2.5 pl-10 pr-4 text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                placeholder="e.g. Blox Fruits Auto-Farm"
+                placeholder="e.g. Blox Fruits 2x XP Gamepass"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               />
@@ -416,8 +416,9 @@ const Admin: React.FC = () => {
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                 >
-                  <option value="script">SlenderHub Scripts (Planos, UI, Auth)</option>
-                  <option value="item">Game Items (Gamepasses, Pets, etc)</option>
+                  <option value="gamepass">Gamepasses</option>
+                  <option value="robux">Robux</option>
+                  <option value="item">Exclusive Items</option>
                   {existingCategories.filter(c => c !== 'script' && c !== 'item').map(cat => (
                       <option key={cat} value={cat}>{cat} (Legacy)</option>
                   ))}

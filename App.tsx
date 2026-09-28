@@ -44,15 +44,14 @@ function App() {
               <Route path="/chat/:id" element={<ChatRoom />} />
               <Route path="/contact" element={<Contact />} />
               
-              {/* Páginas do Sistema de Chaves (SlenderKey / Luarmor Clone) */}
-              {/* Temporariamente desativadas: developer-panel, script-manager e pricing */}
-              <Route path="/developer-panel" element={<Disabled title="Developer Panel indisponível" message="O painel de desenvolvedores está temporariamente desativado. O sistema de chaves voltará em breve." />} />
-              <Route path="/script-manager" element={<Disabled title="Script Manager indisponível" message="O gerenciador de scripts está temporariamente desativado." />} />
+              {/* Páginas do Sistema de Chaves/Script (DESATIVADAS - Loja agora vende Gamepasses, Itens e Robux) */}
+              <Route path="/developer-panel" element={<Disabled title="Painel de Desenvolvedor indisponível" message="O sistema de chaves/scripts foi descontinuado. A loja agora vende Gamepasses, Itens e Robux oficiais do Roblox." />} />
+              <Route path="/script-manager" element={<Disabled title="Gerenciador de Scripts indisponível" message="O sistema de scripts foi descontinuado. A loja agora vende Gamepasses, Itens e Robux oficiais do Roblox." />} />
               <Route path="/documentation" element={<Documentation />} />
-              <Route path="/unlock/:key" element={<UnlockKey />} />
-              <Route path="/claim" element={<ClaimKey />} />
-              <Route path="/verify-gateway" element={<GatewayVerify />} />
-              <Route path="/pricing" element={<Disabled title="Preços indisponíveis" message="A página de preços está temporariamente desativada. Os planos voltarão em breve." />} />
+              <Route path="/unlock/:key" element={<Disabled title="Sistema de Chaves descontinuado" message="Não trabalhamos mais com chaves de script. Compre Gamepasses, Itens e Robux na nossa <a href='/' className='text-blue-400 underline'>loja principal</a>." />} />
+              <Route path="/claim" element={<Disabled title="Sistema de Claims descontinuado" message="Não trabalhamos mais com chaves de script. Compre Gamepasses, Itens e Robux na nossa <a href='/' className='text-blue-400 underline'>loja principal</a>." />} />
+              <Route path="/verify-gateway" element={<Disabled title="Gateway descontinuado" message="O sistema de gateway para chaves foi descontinuado. Compre Gamepasses, Itens e Robux na nossa <a href='/' className='text-blue-400 underline'>loja principal</a>." />} />
+              <Route path="/pricing" element={<Disabled title="Planos indisponíveis" message="Não oferecemos mais planos de scripts. Compre Gamepasses, Itens e Robux na nossa <a href='/' className='text-blue-400 underline'>loja principal</a>." />} />
               <Route path="/scripts" element={<Scripts />} />
               
               {/* Fallback */}

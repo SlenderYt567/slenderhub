@@ -250,7 +250,7 @@ const ProductDetails: React.FC = () => {
             <div className="mt-8 grid grid-cols-2 gap-4 text-xs text-gray-500">
                 <div className="flex items-center gap-2">
                     <ShieldCheck className="h-4 w-4 text-green-500" />
-                    <span>Instant Email Delivery</span>
+                    <span>Instant Delivery</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <CreditCard className="h-4 w-4 text-blue-500" />

@@ -3,9 +3,9 @@ import { Search, Filter, Rocket, Shield, Terminal, Star, Quote } from 'lucide-re
 import { Link } from 'react-router-dom';
 
 const STORE_REVIEWS = [
-  { id: 1, name: 'ShadowGamer99', content: 'Fast and safe delivery! Best script store, highly recommend. 10/10!', rating: 5, date: '1 day ago' },
-  { id: 2, name: 'RX_Sniper', content: 'Bought and received instantly via automated email. Everything working 100%. Completely reliable site.', rating: 5, date: '3 days ago' },
-  { id: 3, name: 'Lucas_Blox', content: 'Excellent support and the exploits are very good, exceeded my expectations. Fair prices!', rating: 5, date: '1 week ago' }
+  { id: 1, name: 'ShadowGamer99', content: 'Instant delivery! Bought Robux and gamepass, arrived instantly. Best store, highly recommend 10/10!', rating: 5, date: '1 day ago' },
+  { id: 2, name: 'RX_Sniper', content: 'Bought rare items and received them seconds later. Everything working 100%. Completely trustworthy site.', rating: 5, date: '3 days ago' },
+  { id: 3, name: 'Lucas_Blox', content: 'Excellent support and fair prices. Gamepasses are original and delivery is automatic.', rating: 5, date: '1 week ago' }
 ];
 
 import { useStore } from '../store';
@@ -56,8 +56,8 @@ const Home: React.FC = () => {
             <span className="text-blue-500">Roblox Experience</span>
           </h1>
           <p className="mx-auto mb-10 max-w-2xl text-lg text-gray-400">
-            Premium exploits, OG accounts, and powerful scripts. Instant delivery, 
-            secure payments, no key systems. The #1 marketplace for gamers.
+            Gamepasses, exclusive items, and Robux with instant delivery. 
+            Secure payments, 24/7 support. The best store to level up your Roblox experience.
           </p>
           <div className="flex flex-col justify-center gap-4 sm:flex-row">
             <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-8 py-3.5 text-base font-bold text-white transition hover:bg-blue-500 hover:shadow-lg hover:shadow-blue-500/25">
@@ -200,21 +200,21 @@ const Home: React.FC = () => {
                     <Rocket className="h-6 w-6" />
                 </div>
                 <h3 className="mb-2 text-lg font-bold text-white">Instant Delivery</h3>
-                <p className="text-sm text-gray-400">Get your scripts and accounts immediately after purchase via email.</p>
+                <p className="text-sm text-gray-400">Receive your gamepasses, items, and Robux seconds after payment confirmation.</p>
             </div>
             <div className="flex flex-col items-center text-center">
                 <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-purple-500/10 text-purple-500">
                     <Shield className="h-6 w-6" />
                 </div>
-                <h3 className="mb-2 text-lg font-bold text-white">Secure & Safe</h3>
-                <p className="text-sm text-gray-400">All products are verified. We prioritize account safety and anonymity.</p>
+                <h3 className="mb-2 text-lg font-bold text-white">100% Secure</h3>
+                <p className="text-sm text-gray-400">Protected transactions. We prioritize your account safety and total privacy.</p>
             </div>
             <div className="flex flex-col items-center text-center">
                 <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-green-500/10 text-green-500">
                     <Terminal className="h-6 w-6" />
                 </div>
-                <h3 className="mb-2 text-lg font-bold text-white">Premium Scripts</h3>
-                <p className="text-sm text-gray-400">High-quality, updated scripts for the most popular Roblox games.</p>
+                <h3 className="mb-2 text-lg font-bold text-white">Complete Catalog</h3>
+                <p className="text-sm text-gray-400">Gamepasses, rare items, Robux, and more for the biggest Roblox games.</p>
             </div>
         </div>
       </section>

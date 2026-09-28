@@ -22,9 +22,7 @@ const Disabled: React.FC<{ title?: string; message?: string }> = ({
           {title}
         </h1>
 
-        <p className="mx-auto mb-8 max-w-md text-base leading-relaxed text-gray-400">
-          {message}
-        </p>
+        <p className="mx-auto mb-8 max-w-md text-base leading-relaxed text-gray-400" dangerouslySetInnerHTML={{ __html: message }} />
 
         <Link
           to="/"

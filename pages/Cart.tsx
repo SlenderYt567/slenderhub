@@ -22,7 +22,7 @@ const Cart: React.FC = () => {
         </div>
         <div>
           <h2 className="text-3xl font-bold text-white">Your cart is empty</h2>
-          <p className="mt-2 text-gray-400">Looks like you haven't added any scripts or items yet.</p>
+          <p className="mt-2 text-gray-400">Looks like you haven\'t added any gamepasses, items, or Robux yet.</p>
         </div>
         <Link
           to="/"

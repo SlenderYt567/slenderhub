@@ -426,8 +426,9 @@ const EditProduct: React.FC = () => {
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                 >
-                  <option value="script">SlenderHub Scripts (Planos, UI, Auth)</option>
-                  <option value="item">Game Items (Gamepasses, Pets, etc)</option>
+                  <option value="gamepass">Gamepasses</option>
+                  <option value="robux">Robux</option>
+                  <option value="item">Exclusive Items</option>
                   {existingCategories.filter(c => c !== 'script' && c !== 'item').map(cat => (
                       <option key={cat} value={cat}>{cat} (Legacy)</option>
                   ))}

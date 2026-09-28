@@ -1,328 +1,262 @@
-import React, { useMemo, useState } from 'react';
-import { Check, Copy, ExternalLink, Info, Lock, RefreshCw } from 'lucide-react';
+import React, { useState } from 'react';
+import { Check, ExternalLink, Info, Shield, Sparkles, Truck, RotateCcw, MessageSquare, ShoppingCart, Coins, Gem } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Documentation: React.FC = () => {
-  const [copied, setCopied] = useState<string | null>(null);
-  const baseUrl = useMemo(() => window.location.origin, []);
+  const [activeTab, setActiveTab] = useState<'buy' | 'delivery' | 'support' | 'faq'>('buy');
 
-  const luaCode = useMemo(
-    () => `-- [ SlenderHub ] - Loader integration example
-local LicenseKey = "SLENDER-XXXX-XXXX"
-local HWID = game:GetService("RbxAnalyticsService"):GetClientId()
+  const tabs = [
+    { id: 'buy', label: 'How to Buy', icon: ShoppingCart },
+    { id: 'delivery', label: 'Delivery', icon: Truck },
+    { id: 'support', label: 'Support', icon: MessageSquare },
+    { id: 'faq', label: 'FAQ', icon: Info },
+  ];
 
-loadstring(game:HttpGet("${baseUrl}/api/scripts/loader?key=" .. LicenseKey .. "&hwid=" .. HWID))()`,
-    [baseUrl]
-  );
+  const stepsBuy = [
+    {
+      number: 1,
+      title: 'Choose Your Product',
+      description: 'Browse our store and select the gamepass, item, or Robux amount you want.',
+      icon: Sparkles,
+    },
+    {
+      number: 2,
+      title: 'Add to Cart',
+      description: 'Click "Add to Cart" and review your order. You can add multiple items.',
+      icon: ShoppingCart,
+    },
+    {
+      number: 3,
+      title: 'Complete Payment',
+      description: 'Choose between PIX, Credit Card, PayPal, or Crypto. PIX payments are approved instantly.',
+      icon: Check,
+    },
+    {
+      number: 4,
+      title: 'Receive Instantly',
+      description: 'After confirmation, delivery is automatic. Gamepasses and items go directly to your Roblox account.',
+      icon: Truck,
+    },
+  ];
 
-  const verifyExample = useMemo(
-    () => `local HttpService = game:GetService("HttpService")
-local HWID = game:GetService("RbxAnalyticsService"):GetClientId()
-local response = HttpService:GetAsync("${baseUrl}/api/keys/verify?key=" .. LicenseKey .. "&hwid=" .. HWID)
-local data = HttpService:JSONDecode(response)
-
-if not data.success then
-    warn(data.message)
-    return
-end`,
-    [baseUrl]
-  );
-
-  const externalApiExample = useMemo(
-    () => `-- SlenderHub External Key API (global keys)
-local HttpService = game:GetService("HttpService")
-local Analytics = game:GetService("RbxAnalyticsService")
-
-local KEY_FILE = "SlenderHubKey.json"
-local VERIFY_URL = "${baseUrl}/api/keys/verify"
-
-local function getHWID()
-    local ok, hwid = pcall(function()
-        return Analytics:GetClientId()
-    end)
-    return ok and hwid or "UNKNOWN_HWID"
-end
-
-local function saveKey(key)
-    if writefile then
-        writefile(KEY_FILE, HttpService:JSONEncode({ key = key }))
-    end
-end
-
-local function loadSavedKey()
-    if not isfile or not isfile(KEY_FILE) then
-        return nil
-    end
-
-    local ok, parsed = pcall(function()
-        return HttpService:JSONDecode(readfile(KEY_FILE))
-    end)
-
-    if ok and parsed and parsed.key then
-        return parsed.key
-    end
-
-    return nil
-end
-
-local function verifyKey(licenseKey)
-    local url = VERIFY_URL
-        .. "?key=" .. HttpService:UrlEncode(licenseKey)
-        .. "&hwid=" .. HttpService:UrlEncode(getHWID())
-
-    local response = HttpService:GetAsync(url)
-    local data = HttpService:JSONDecode(response)
-
-    if not data.success then
-        return false, data.message
-    end
-
-    return true, data
-end
-
-local function authenticateWithKey(licenseKey)
-    local ok, valid, payload = pcall(function()
-        return verifyKey(licenseKey)
-    end)
-
-    if not ok then
-        warn("SlenderHub verify request failed: " .. tostring(valid))
-        return false
-    end
-
-    if not valid then
-        warn("Invalid key: " .. tostring(payload))
-        return false
-    end
-
-    saveKey(licenseKey)
-
-    local tier = payload.tier or payload.type or "basic"
-    print("Authenticated with SlenderHub tier:", tier)
-
-    -- Call your own script init here
-    -- startMyScript()
-    return true
-end
-
-local rememberedKey = loadSavedKey()
-if rememberedKey then
-    if authenticateWithKey(rememberedKey) then
-        return
-    end
-end
-
--- Replace this with your UI/input system
-local inputKey = "PASTE_USER_KEY_HERE"
-authenticateWithKey(inputKey)`,
-    [baseUrl]
-  );
-
-  const claimPageExample = useMemo(
-    () => `${baseUrl}/#/claim?owner=YOUR_USER_ID&duration=1&prefix=SLENDER&note=Free+claim`,
-    [baseUrl]
-  );
-
-  const copyCode = async (value: string, id: string) => {
-    await navigator.clipboard.writeText(value);
-    setCopied(id);
-    setTimeout(() => setCopied(null), 2000);
-  };
+  const faqItems = [
+    {
+      question: 'Is delivery really instant?',
+      answer: 'Yes! For PIX and crypto payments, approval takes seconds and delivery is automatic. Credit cards may take a few minutes for bank approval.',
+    },
+    {
+      question: 'Do I need to provide my Roblox password?',
+      answer: 'NEVER. Delivery is done via official Roblox systems (Gamepass/Developer Products) or Robux transfer via group. We only need your Roblox username.',
+    },
+    {
+      question: 'Is it safe to buy here?',
+      answer: 'Absolutely. We use certified payment gateways (Mercado Pago, Stripe, PayPal). Your financial data never passes through our servers. We have SSL/TLS on all pages.',
+    },
+    {
+      question: 'What if I don\'t receive my item?',
+      answer: 'Full delivery guarantee or your money back. Our 24/7 support resolves issues in minutes. Just open a ticket with your order number.',
+    },
+    {
+      question: 'Can I buy for a friend?',
+      answer: 'Yes! At checkout, just provide the Roblox username of the recipient. Delivery goes directly to the specified account.',
+    },
+    {
+      question: 'Do you sell accounts or exploits?',
+      answer: 'No. We only sell official gamepasses, Roblox catalog items, and Robux via official methods. We do not work with exploits, scripts, accounts, or anything that violates Roblox TOS.',
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-[#020617] px-4 pb-12 pt-24 text-white">
       <div className="mx-auto max-w-4xl">
         <div className="mb-12">
-          <Link to="/developer-panel" className="mb-4 inline-block text-blue-400 hover:underline">
-            Back to Dashboard
+          <Link to="/" className="mb-4 inline-block text-blue-400 hover:underline flex items-center gap-1">
+            <RotateCcw className="h-4 w-4" />
+            Back to Store
           </Link>
           <h1 className="mb-4 text-4xl font-black">
-            INTEGRATION <span className="text-blue-500">GUIDE</span>
+            HELP <span className="text-purple-500">CENTER</span>
           </h1>
           <p className="text-gray-400">
-            This guide now reflects the real routes used by the project so developers can copy a working integration path.
+            Everything you need to know to buy gamepasses, items, and Robux safely and quickly.
           </p>
         </div>
 
-        <div className="mb-8 flex items-start space-x-4 rounded-2xl border border-blue-500/20 bg-blue-500/10 p-6">
-          <Info className="mt-1 h-6 w-6 shrink-0 text-blue-400" />
-          <div>
-            <h3 className="font-bold text-blue-100">Prerequisites</h3>
-            <p className="text-sm text-blue-300">
-              Ensure the executor supports `game:HttpGet` or `HttpService`. In Roblox Studio, enable HTTP requests in
-              game settings before testing.
-            </p>
-          </div>
+        {/* Tabs */}
+        <div className="mb-8 border-b border-slate-800">
+          <nav className="flex gap-1 overflow-x-auto pb-2" role="tablist">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                  role="tab"
+                  aria-selected={activeTab === tab.id}
+                  className={`whitespace-nowrap flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition ${
+                    activeTab === tab.id
+                      ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
+                      : 'bg-slate-900 text-gray-400 hover:bg-slate-800 hover:text-white'
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </nav>
         </div>
 
+        {/* Content */}
         <div className="space-y-8">
-          <section>
-            <div className="mb-4 flex items-center space-x-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 font-bold">1</div>
-              <h2 className="text-xl font-bold">Create your script</h2>
-            </div>
-            <p className="ml-11 mb-4 text-gray-400">
-              Open the <Link to="/script-manager" className="text-blue-400 hover:underline">Script Manager</Link> and
-              create the protected script that the loader should deliver.
-            </p>
-          </section>
-
-          <section>
-            <div className="mb-4 flex items-center space-x-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 font-bold">2</div>
-              <h2 className="text-xl font-bold">Generate a key</h2>
-            </div>
-            <p className="ml-11 mb-4 text-gray-400">
-              In the <Link to="/developer-panel" className="text-blue-400 hover:underline">Developer Panel</Link>,
-              generate a key and optionally link it to a specific script.
-            </p>
-          </section>
-
-          <section>
-            <div className="mb-4 flex items-center space-x-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 font-bold">3</div>
-              <h2 className="text-xl font-bold">Use the loader endpoint</h2>
-            </div>
-            <p className="ml-11 mb-4 text-gray-400">
-              For the most Luarmor-like flow in this project, use the loader endpoint directly instead of manually
-              pulling script content.
-            </p>
-
-            <div className="ml-11 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
-              <div className="flex items-center justify-between border-b border-slate-800 bg-slate-800/50 px-4 py-2">
-                <span className="text-xs uppercase text-gray-500">Luau Loader</span>
-                <button
-                  onClick={() => void copyCode(luaCode, 'loader')}
-                  className="flex items-center space-x-2 rounded-lg bg-slate-700 px-3 py-1 text-xs transition-colors hover:bg-slate-600"
-                >
-                  {copied === 'loader' ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
-                  <span>{copied === 'loader' ? 'Copied' : 'Copy Code'}</span>
-                </button>
-              </div>
-              <div className="overflow-x-auto p-6">
-                <pre className="text-sm leading-relaxed text-blue-300">{luaCode}</pre>
-              </div>
-            </div>
-          </section>
-
-          <section>
-            <div className="mb-4 flex items-center space-x-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 font-bold">4</div>
-              <h2 className="text-xl font-bold">Verify a key manually</h2>
-            </div>
-            <p className="ml-11 mb-4 text-gray-400">
-              If you need a pre-check before execution, the verification endpoint is available too.
-            </p>
-
-            <div className="ml-11 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
-              <div className="border-b border-slate-800 bg-slate-800/50 px-4 py-2 text-xs uppercase text-gray-500">
-                Verification Example
-              </div>
-              <div className="overflow-x-auto p-6">
-                <pre className="text-sm leading-relaxed text-blue-300">{verifyExample}</pre>
-              </div>
-            </div>
-          </section>
-
-          <section>
-            <div className="mb-4 flex items-center space-x-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 font-bold">5</div>
-              <h2 className="text-xl font-bold">Integrate global keys into your own script</h2>
-            </div>
-            <p className="ml-11 mb-4 text-gray-400">
-              Use this mode when you already have your own key UI inside the script and only want SlenderHub to validate
-              global keys. The user gets a free or premium key from your site, pastes it into your script once, and the
-              script can remember it locally for future launches.
-            </p>
-
-            <div className="ml-11 mb-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-200">
-              This mode uses <code className="font-mono text-emerald-300">{baseUrl}/api/keys/verify</code> only. It does
-              not require the protected loader route.
-            </div>
-
-            <div className="ml-11 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
-              <div className="flex items-center justify-between border-b border-slate-800 bg-slate-800/50 px-4 py-2">
-                <span className="text-xs uppercase text-gray-500">External Key API Example</span>
-                <button
-                  onClick={() => void copyCode(externalApiExample, 'external-api')}
-                  className="flex items-center space-x-2 rounded-lg bg-slate-700 px-3 py-1 text-xs transition-colors hover:bg-slate-600"
-                >
-                  {copied === 'external-api' ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
-                  <span>{copied === 'external-api' ? 'Copied' : 'Copy Code'}</span>
-                </button>
-              </div>
-              <div className="overflow-x-auto p-6">
-                <pre className="text-sm leading-relaxed text-emerald-300">{externalApiExample}</pre>
-              </div>
-            </div>
-          </section>
-
-          <section>
-            <div className="mb-4 flex items-center space-x-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 font-bold">6</div>
-              <h2 className="text-xl font-bold">Give users a page to get free or premium keys</h2>
-            </div>
-            <p className="ml-11 mb-4 text-gray-400">
-              Pair the external API mode with the new claim page. Users open your public page, complete the gateway, and
-              receive a fresh global key to paste into your script UI.
-            </p>
-
-            <div className="ml-11 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
-              <div className="flex items-center justify-between border-b border-slate-800 bg-slate-800/50 px-4 py-2">
-                <span className="text-xs uppercase text-gray-500">Claim Page Example</span>
-                <button
-                  onClick={() => void copyCode(claimPageExample, 'claim')}
-                  className="flex items-center space-x-2 rounded-lg bg-slate-700 px-3 py-1 text-xs transition-colors hover:bg-slate-600"
-                >
-                  {copied === 'claim' ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
-                  <span>{copied === 'claim' ? 'Copied' : 'Copy URL'}</span>
-                </button>
-              </div>
-              <div className="overflow-x-auto p-6">
-                <pre className="text-sm leading-relaxed text-blue-300">{claimPageExample}</pre>
-              </div>
-            </div>
-          </section>
-
-          <section>
-            <div className="mb-4 flex items-center space-x-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 font-bold">7</div>
-              <h2 className="text-xl font-bold">Understand HWID lock</h2>
-            </div>
-            <div className="ml-11 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-                <div className="mb-2 flex items-center space-x-2 text-green-400">
-                  <Lock className="h-4 w-4" />
-                  <h4 className="font-bold">Automatic Lock</h4>
+          {activeTab === 'buy' && (
+            <>
+              <div className="mb-8 flex items-start space-x-4 rounded-2xl border border-purple-500/20 bg-purple-500/10 p-6">
+                <Info className="mt-1 h-6 w-6 shrink-0 text-purple-400" />
+                <div>
+                  <h3 className="font-bold text-purple-100">Before You Start</h3>
+                  <p className="text-sm text-purple-300 mt-1">
+                    Have your <strong>Roblox username</strong> ready (not your password!). For Robux, you\'ll need to join the
+                    official Slender Hub group on Roblox to receive the transfer.
+                  </p>
                 </div>
-                <p className="text-xs text-gray-400">
-                  The key locks to the first HWID that successfully authenticates, preventing casual sharing.
+              </div>
+
+              <div className="space-y-6">
+                {stepsBuy.map((step) => (
+                  <div key={step.number} className="flex gap-4">
+                    <div className="flex-shrink-0 flex h-10 w-10 items-center justify-center rounded-full bg-purple-600 font-bold text-white">
+                      {step.number}
+                    </div>
+                    <div className="flex-1 pt-1">
+                      <div className="flex items-center gap-2">
+                        <step.icon className="h-5 w-5 text-purple-400" />
+                        <h3 className="text-lg font-bold text-white">{step.title}</h3>
+                      </div>
+                      <p className="ml-7 mt-2 text-gray-400">{step.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {activeTab === 'delivery' && (
+            <div className="space-y-6">
+              <div className="rounded-2xl border border-green-500/20 bg-green-500/10 p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <Truck className="h-6 w-6 text-green-400" />
+                  <h3 className="text-xl font-bold text-green-300">100% Automatic and Secure Delivery</h3>
+                </div>
+                <p className="text-gray-300">
+                  After payment confirmation, our systems process delivery instantly:
                 </p>
               </div>
-              <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-                <div className="mb-2 flex items-center space-x-2 text-amber-500">
-                  <RefreshCw className="h-4 w-4" />
-                  <h4 className="font-bold">Manual Reset</h4>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+                  <div className="mb-3 flex items-center gap-2 text-blue-400">
+                    <Sparkles className="h-5 w-5" />
+                    <h4 className="font-bold">Gamepasses</h4>
+                  </div>
+                  <p className="text-sm text-gray-400">Delivered via official Roblox Developer Product. You receive an in-game notification and the gamepass appears in your inventory.</p>
                 </div>
-                <p className="text-xs text-gray-400">
-                  If a customer changes machine, you can reset the HWID from the Developer Panel.
+                <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+                  <div className="mb-3 flex items-center gap-2 text-yellow-400">
+                    <Coins className="h-5 w-5" />
+                    <h4 className="font-bold">Robux</h4>
+                  </div>
+                  <p className="text-sm text-gray-400">Transferred via official Roblox group (Payout). You join the group, accept the payout, and Robux arrive in your account within 3 days (Roblox policy).</p>
+                </div>
+                <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+                  <div className="mb-3 flex items-center gap-2 text-pink-400">
+                    <Gem className="h-5 w-5" />
+                    <h4 className="font-bold">Exclusive Items</h4>
+                  </div>
+                  <p className="text-sm text-gray-400">Catalog items are purchased by us and sent via Roblox trading/gifting system. You receive a notification to accept.</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-6">
+                <div className="flex items-center gap-3 mb-3">
+                  <Shield className="h-5 w-5 text-amber-400" />
+                  <h4 className="font-bold text-amber-300">Important About Robux</h4>
+                </div>
+                <p className="text-sm text-amber-200">
+                  Due to Roblox policy, group payments (Payouts) can take <strong>up to 72 hours</strong> to arrive.
+                  Gamepasses and items are instant. "Pending" status in the group is normal.
                 </p>
               </div>
             </div>
-          </section>
+          )}
+
+          {activeTab === 'support' && (
+            <div className="space-y-6">
+              <div className="rounded-2xl border border-blue-500/20 bg-blue-500/10 p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <MessageSquare className="h-6 w-6 text-blue-400" />
+                  <h3 className="text-xl font-bold text-blue-300">24/7 Support</h3>
+                </div>
+                <p className="text-gray-300 mb-4">
+                  Our team is available 24 hours a day, 7 days a week to help with any questions or issues.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Link to="/contact" className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/50 p-4 hover:border-blue-500/50 transition-colors">
+                    <MessageSquare className="h-6 w-6 text-blue-400" />
+                    <div>
+                      <h4 className="font-bold text-white">Open Ticket</h4>
+                      <p className="text-xs text-gray-400">Response within 5 minutes</p>
+                    </div>
+                  </Link>
+                  <a href="https://discord.gg/slenderhub" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/50 p-4 hover:border-purple-500/50 transition-colors">
+                    <ExternalLink className="h-6 w-6 text-purple-400" />
+                    <div>
+                      <h4 className="font-bold text-white">Discord</h4>
+                      <p className="text-xs text-gray-400">Community and quick support</p>
+                    </div>
+                  </a>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
+                <h4 className="font-bold text-white mb-4">Information for the Ticket</h4>
+                <p className="text-sm text-gray-400 mb-4">For faster assistance, include:</p>
+                <ul className="space-y-2 text-sm text-gray-300">
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-400" /> Order number (e.g., #SLH-12345)</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-400" /> Roblox username used for purchase</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-400" /> Payment proof screenshot (if applicable)</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-400" /> Issue description</li>
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'faq' && (
+            <div className="space-y-4">
+              {faqItems.map((item, index) => (
+                <details key={index} className="group rounded-xl border border-slate-800 bg-slate-900/50 p-6 transition-colors hover:border-slate-700">
+                  <summary className="flex items-center justify-between cursor-pointer list-none">
+                    <h4 className="font-semibold text-white pr-4">{item.question}</h4>
+                    <RotateCcw className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${'group-open:rotate-180'}`} />
+                  </summary>
+                  <div className="mt-4 pt-4 border-t border-slate-800 text-gray-300 text-sm leading-relaxed">
+                    {item.answer}
+                  </div>
+                </details>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="mt-16 border-t border-slate-800 pt-12 text-center">
-          <p className="mb-6 italic text-gray-500">Need a custom flow, webhook or stronger gateway validation?</p>
-          <a
-            href="https://discord.gg/2B8TQ7A3MV"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center space-x-2 rounded-xl bg-[#5865F2] px-8 py-3 font-bold transition-all hover:bg-[#4752C4]"
+          <p className="mb-6 italic text-gray-500">Didn\'t find your answer? Our team is ready to help.</p>
+          <Link
+            to="/contact"
+            className="inline-flex items-center space-x-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 px-8 py-3 font-bold transition-all hover:shadow-[0_0_30px_rgba(168,85,247,0.4)]"
           >
-            <span>Join Developer Discord</span>
-            <ExternalLink className="h-4 w-4" />
-          </a>
+            <MessageSquare className="h-4 w-4" />
+            <span>Contact Support</span>
+          </Link>
         </div>
       </div>
     </div>
