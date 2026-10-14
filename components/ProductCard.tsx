@@ -1,17 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ShoppingCart, Zap, Package, Trash2, Edit, Eye, Sparkles } from 'lucide-react';
 import { Product } from '../types';
 import { useStore } from '../store';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 interface ProductCardProps {
   product: Product;
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
-  const { addToCart, isAuthenticated, deleteProduct, formatPrice } = useStore();
+  const { addToCart, isAdmin, deleteProduct, formatPrice, isSoldOut } = useStore();
+  const navigate = useNavigate();
+  const [deleting, setDeleting] = useState(false);
 
-  const soldOut = product.stock <= 0;
+  const soldOut = isSoldOut(product);
 
   const getCategoryIcon = (cat: string) => {
     const c = cat.toLowerCase();
@@ -98,7 +100,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             <span className="text-xl font-bold text-white">{formatPrice(product.price)}</span>
           </div>
 
-          {isAuthenticated ? (
+          {isAdmin ? (
             <div className="flex gap-2">
               <Link
                 to={`/edit/${product.id}`}
@@ -108,7 +110,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                 <Edit className="h-4 w-4" />
               </Link>
               <button
-                onClick={() => deleteProduct(product.id)}
+                disabled={deleting}
+                onClick={async () => {
+                  if (deleting || !window.confirm(`Excluir "${product.title}" e suas variantes?`)) return;
+                  setDeleting(true);
+                  try { await deleteProduct(product.id); } finally { setDeleting(false); }
+                }}
                 className="flex items-center justify-center rounded-lg bg-red-500/10 p-2 text-red-500 hover:bg-red-500 hover:text-white transition"
                 title="Delete Product"
               >
@@ -117,12 +124,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             </div>
           ) : (
             <button
-              onClick={() => addToCart(product)}
+              onClick={() => product.variants?.length ? navigate(`/product/${product.id}`) : addToCart(product)}
               disabled={soldOut}
               className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition ${soldOut ? 'cursor-not-allowed bg-slate-800 text-gray-500' : 'bg-white text-slate-950 hover:bg-blue-500 hover:text-white hover:scale-105 active:scale-95'}`}
             >
               {soldOut ? <Package className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
-              {soldOut ? 'Esgotado' : 'Add'}
+              {soldOut ? 'Esgotado' : product.variants?.length ? 'Escolher' : 'Add'}
             </button>
           )}
         </div>

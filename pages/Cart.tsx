@@ -2,17 +2,14 @@ import React from 'react';
 import { useStore } from '../store';
 import { Trash2, ArrowRight, ShieldCheck, CreditCard } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { isCartItemUnavailable } from '../lib/products';
 
 const Cart: React.FC = () => {
   const { cart, removeFromCart, totalCartValue, formatPrice, isAuthenticated } = useStore();
   const navigate = useNavigate();
 
   // Itens esgotados (produto stock<=0 ou variante stock definido e <=0)
-  const soldOutItems = cart.filter(item =>
-    item.selectedVariant
-      ? item.selectedVariant.stock != null && item.selectedVariant.stock <= 0
-      : item.stock <= 0
-  );
+  const soldOutItems = cart.filter(item => isCartItemUnavailable(item, cart));
 
   if (cart.length === 0) {
     return (
@@ -44,12 +41,12 @@ const Cart: React.FC = () => {
           <div className="space-y-4">
             {cart.map((item) => (
               <div
-                key={item.id}
+                key={`${item.id}:${item.selectedVariant?.id ?? ''}`}
                 className="flex items-center gap-4 rounded-xl border border-slate-800 bg-slate-900 p-4 transition hover:border-slate-700"
               >
                 {item.image ? (
                   <img
-                    src={item.image}
+                    src={item.selectedVariant?.image || item.image}
                     alt={item.title}
                     className="h-24 w-24 rounded-lg object-cover"
                   />
@@ -64,13 +61,12 @@ const Cart: React.FC = () => {
                       <Link to={`/product/${item.id}`} className="hover:text-blue-400 transition">
                         <h3 className="text-lg font-bold text-white">{item.title}</h3>
                       </Link>
+                      {item.selectedVariant && <p className="text-sm text-blue-300">{item.selectedVariant.name}</p>}
                       <span className="inline-block rounded bg-slate-800 px-2 py-0.5 text-xs text-gray-400 capitalize mt-1">
                         {item.category}
                       </span>
                       {(
-                        item.selectedVariant
-                          ? item.selectedVariant.stock != null && item.selectedVariant.stock <= 0
-                          : item.stock <= 0
+                        isCartItemUnavailable(item, cart)
                       ) && (
                         <span className="inline-block rounded bg-red-500/15 px-2 py-0.5 text-xs font-bold text-red-500 mt-1 ml-1 ring-1 ring-red-500/40">
                           Esgotado
@@ -82,7 +78,7 @@ const Cart: React.FC = () => {
                   <div className="mt-4 flex items-center justify-between text-sm text-gray-400">
                     <span>Qty: {item.quantity}</span>
                     <button
-                      onClick={() => removeFromCart(item.id)}
+                      onClick={() => removeFromCart(item.id, item.selectedVariant?.id)}
                       className="flex items-center gap-1 text-red-400 hover:text-red-300 transition"
                     >
                       <Trash2 className="h-4 w-4" />

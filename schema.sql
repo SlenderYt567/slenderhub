@@ -2,6 +2,7 @@
 -- SLENDER HUB — FULL SCHEMA v2 (LuaArmor-like)
 -- =============================================
 -- Instruções: Execute TODO este SQL no Supabase SQL Editor
+-- Depois, execute migrate_variant_category.sql para instalar o salvamento atômico e as correções de permissões.
 -- (projeto: pypfcdczatmsnqjuggiq)
 
 -- Extensões necessárias
@@ -31,6 +32,9 @@ CREATE TABLE IF NOT EXISTS public.product_variants (
     product_id text REFERENCES public.products(id) ON DELETE CASCADE NOT NULL,
     name text NOT NULL,
     price numeric NOT NULL,
+    image text,
+    category text,
+    stock integer,
     created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 

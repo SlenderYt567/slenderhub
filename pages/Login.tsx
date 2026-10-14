@@ -64,7 +64,8 @@ const Login: React.FC = () => {
             <div className="relative">
               <Mail className="absolute left-3 top-2.5 h-5 w-5 text-gray-500" />
               <input
-                type="display-email"
+                type="email"
+                autoComplete="username"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}

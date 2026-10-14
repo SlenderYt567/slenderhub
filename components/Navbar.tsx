@@ -46,12 +46,6 @@ const Navbar: React.FC = () => {
           <Link to="/scripts" className={`hidden text-sm font-medium transition md:block ${isActive('/scripts')}`}>
             Loja
           </Link>
-          {isAuthenticated && (
-            <Link to="/admin-dashboard" className={`hidden text-sm font-medium transition md:block ${isActive('/admin-dashboard')}`}>
-              Painel Admin
-            </Link>
-          )}
-
           {isAdmin && (
             <>
               <Link to="/admin-dashboard" className={`hidden text-sm font-medium transition md:block ${isActive('/admin-dashboard')}`}>
@@ -67,6 +61,8 @@ const Navbar: React.FC = () => {
         <div className="flex items-center gap-4">
           {/* Mobile Menu Button */}
           <button 
+            aria-label={isMenuOpen ? 'Fechar menu' : 'Abrir menu'}
+            aria-expanded={isMenuOpen}
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             className="md:hidden flex items-center justify-center rounded-lg bg-slate-800 p-2 text-gray-400 hover:bg-slate-700 hover:text-white transition"
           >
@@ -129,10 +125,6 @@ const Navbar: React.FC = () => {
           <Link to="/contact" onClick={() => setIsMenuOpen(false)} className={`block text-base font-medium ${isActive('/contact')}`}>Contact</Link>
           <Link to="/scripts" onClick={() => setIsMenuOpen(false)} className={`block text-base font-medium ${isActive('/scripts')}`}>Loja</Link>
           
-          {isAuthenticated && (
-            <Link to="/admin-dashboard" onClick={() => setIsMenuOpen(false)} className={`block text-base font-medium ${isActive('/admin-dashboard')}`}>Painel Admin</Link>
-          )}
-
           {isAdmin && (
             <>
               <Link to="/admin-dashboard" onClick={() => setIsMenuOpen(false)} className={`block text-base font-medium ${isActive('/admin-dashboard')}`}>Dashboard</Link>

@@ -12,14 +12,16 @@ import { useStore } from '../store';
 import ProductCard from '../components/ProductCard';
 
 const Home: React.FC = () => {
-  const { products } = useStore();
+  const { products, loading, productsError, reloadProducts } = useStore();
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   const TABS = [
     { id: 'all', label: 'All Products' },
-    { id: 'script', label: 'SlenderHub Scripts' },
+    { id: 'gamepass', label: 'Gamepasses' },
+    { id: 'robux', label: 'Robux' },
     { id: 'item', label: 'Game Items' },
+    ...Array.from(new Set(products.map(p => p.category))).filter(c => !['gamepass', 'robux', 'item'].includes(c)).map(c => ({ id: c, label: c })),
   ];
 
   const filteredProducts = useMemo(() => {
@@ -60,7 +62,7 @@ const Home: React.FC = () => {
             Secure payments, 24/7 support. The best store to level up your Roblox experience.
           </p>
           <div className="flex flex-col justify-center gap-4 sm:flex-row">
-            <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-8 py-3.5 text-base font-bold text-white transition hover:bg-blue-500 hover:shadow-lg hover:shadow-blue-500/25">
+            <button onClick={() => document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' })} className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-8 py-3.5 text-base font-bold text-white transition hover:bg-blue-500 hover:shadow-lg hover:shadow-blue-500/25">
               <Rocket className="h-5 w-5" />
               Browse Products
             </button>
@@ -95,7 +97,7 @@ const Home: React.FC = () => {
       </section>
 
       {/* Filter & Search Bar */}
-      <div className="sticky top-16 z-40 border-b border-slate-800 bg-slate-950/95 backdrop-blur-xl">
+      <div id="catalog" className="sticky top-16 z-40 scroll-mt-16 border-b border-slate-800 bg-slate-950/95 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
             <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-hide">
                 {TABS.map((tab) => (
@@ -117,7 +119,7 @@ const Home: React.FC = () => {
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
                 <input
                     type="text"
-                    placeholder="Search for scripts..."
+                    placeholder="Search for products..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full rounded-lg border border-slate-800 bg-slate-900 py-2 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:w-64"
@@ -136,7 +138,8 @@ const Home: React.FC = () => {
             </div>
         </div>
         
-        {filteredProducts.length > 0 ? (
+        {productsError && <div role="alert" className="mb-6 rounded-lg border border-red-500/30 p-4 text-red-300">{productsError}<button onClick={() => void reloadProducts()} className="ml-4 underline">Tentar novamente</button></div>}
+        {loading && products.length === 0 ? <p role="status" className="py-12 text-center text-gray-400">Carregando catálogo…</p> : filteredProducts.length > 0 ? (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />

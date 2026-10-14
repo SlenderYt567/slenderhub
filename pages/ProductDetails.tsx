@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useStore } from '../store';
-import { ProductVariant } from '../types';
+import { Product, ProductVariant } from '../types';
 import { ShoppingCart, ArrowLeft, ShieldCheck, Zap, Package, Minus, Plus, CreditCard, Check } from 'lucide-react';
 
 const ProductDetails: React.FC = () => {
@@ -9,27 +9,29 @@ const ProductDetails: React.FC = () => {
   const navigate = useNavigate();
   const { products, getProductDetail, addToCart, formatPrice, currency, isVariantSoldOut } = useStore();
   
-  const [product, setProduct] = useState(products.find(p => p.id === id));
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loadingProduct, setLoadingProduct] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
 
   useEffect(() => {
-    const found = products.find(p => p.id === id);
-    setProduct(found);
-    // Select first AVAILABLE variant by default (skip sold out ones)
-    if (found?.variants && found.variants.length > 0) {
-        const firstAvailable = found.variants.find(v => !isVariantSoldOut(v)) ?? found.variants[0];
-        setSelectedVariantId(firstAvailable.id);
-    }
+    let cancelled = false;
+    setLoadingProduct(true);
+    setLoadError('');
+    setQuantity(1);
+    getProductDetail(id!).then(detail => {
+      if (cancelled) return;
+      setProduct(detail);
+      const available = detail?.variants?.find(v => !isVariantSoldOut(v)) ?? detail?.variants?.[0];
+      setSelectedVariantId(available?.id ?? null);
+    }).catch(() => { if (!cancelled) setLoadError('Não foi possível carregar o produto. Atualize a página para tentar novamente.'); })
+      .finally(() => { if (!cancelled) setLoadingProduct(false); });
+    return () => { cancelled = true; };
+  }, [id, getProductDetail, isVariantSoldOut]);
 
-    // A listagem não traz a coluna image (payload ~6MB de base64):
-    // busca o produto completo on-demand para exibir a imagem corretamente.
-    if (!found?.image) {
-      getProductDetail(id!).then(detail => {
-        if (detail) setProduct(prev => prev ? { ...prev, ...detail } : detail);
-      });
-    }
-  }, [id, products, getProductDetail, isVariantSoldOut]);
+  if (loadingProduct) return <p role="status" className="p-12 text-center">Carregando produto…</p>;
+  if (loadError) return <p role="alert" className="p-12 text-center">{loadError}</p>;
 
   if (!product) {
     return (
@@ -54,15 +56,15 @@ const ProductDetails: React.FC = () => {
     ? product.variants.every(v => isVariantSoldOut(v))
     : productSoldOut;
   const selectedVariantSoldOut = currentVariant ? isVariantSoldOut(currentVariant) : productSoldOut;
-  const soldOut = allVariantsSoldOut || selectedVariantSoldOut;
+  const soldOut = productSoldOut || allVariantsSoldOut || selectedVariantSoldOut;
+  const maxQuantity = Math.min(product.stock, currentVariant?.stock ?? product.stock);
 
   const handleAddToCart = () => {
     addToCart(product, quantity, getSelectedVariant());
   };
 
   const handleBuyNow = () => {
-    addToCart(product, quantity, getSelectedVariant());
-    navigate('/checkout');
+    if (addToCart(product, quantity, getSelectedVariant())) navigate('/checkout');
   };
 
   const categoryColorClass = () => {
@@ -213,7 +215,8 @@ const ProductDetails: React.FC = () => {
                         </button>
                         <div className="flex-1 text-center text-white font-bold">{quantity}</div>
                         <button 
-                             onClick={() => setQuantity(quantity + 1)}
+                             onClick={() => setQuantity(Math.min(maxQuantity, quantity + 1))}
+                             disabled={soldOut || quantity >= maxQuantity}
                              className="flex h-10 w-10 items-center justify-center text-gray-400 hover:text-white"
                         >
                             <Plus className="h-4 w-4" />

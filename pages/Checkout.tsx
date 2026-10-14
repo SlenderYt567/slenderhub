@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useStore } from '../store';
 import { ArrowLeft, Check, Copy, Loader2, MessageSquare, Upload, FileCheck, Globe, HelpCircle, Coins } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { isCartItemUnavailable } from '../lib/products';
 
 // Compresses a base64 image to max 800px and quality 70% to avoid Supabase payload limits
 const compressImage = (base64: string, maxSize = 800, quality = 0.7): Promise<string> => {
@@ -86,7 +87,7 @@ const isCryptoAddressConfigured = (coin: CryptoCoin): boolean => {
 };
 
 const Checkout: React.FC = () => {
-    const { cart, totalCartValue, clearCart, createChat, isAuthenticated, user, formatPrice, exchangeRate, currency } = useStore();
+    const { cart, totalCartValue, clearCart, createChat, isAuthenticated, authReady, user, formatPrice, exchangeRate, currency, getProductDetail, showToast } = useStore();
     const navigate = useNavigate();
     const [step, setStep] = useState<'review' | 'payment' | 'success'>('review');
     const [loading, setLoading] = useState(false);
@@ -111,11 +112,7 @@ const Checkout: React.FC = () => {
     const cryptoAmount = cryptoPrice > 0 ? (totalCartValue / cryptoPrice) : 0;
 
     // Itens do carrinho que ficaram esgotados (produto stock<=0 ou variante stock definido e <=0)
-    const soldOutItems = cart.filter(item =>
-      item.selectedVariant
-        ? item.selectedVariant.stock != null && item.selectedVariant.stock <= 0
-        : item.stock <= 0
-    );
+    const soldOutItems = cart.filter(item => isCartItemUnavailable(item, cart));
 
     // Live crypto prices (USD) via CoinGecko
     useEffect(() => {
@@ -136,17 +133,37 @@ const Checkout: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        if (!isAuthenticated) {
+        if (authReady && !isAuthenticated) {
             navigate('/login');
         }
-    }, [isAuthenticated, navigate]);
+    }, [authReady, isAuthenticated, navigate]);
 
-    const handlePay = () => {
+    const validateOrder = async () => {
+        if (!cart.length || soldOutItems.length) throw new Error('Revise os itens e o estoque do carrinho.');
+        const ids = [...new Set(cart.map(item => item.id))];
+        const current = await Promise.all(ids.map(getProductDetail));
+        for (const item of cart) {
+            const product = current.find(p => p?.id === item.id);
+            const variant = product?.variants?.find(v => v.id === item.selectedVariant?.id);
+            if (!product || ((item.selectedVariant || product.variants?.length) && !variant)) throw new Error('Um item não está mais disponível. Volte ao carrinho.');
+            const price = variant?.price ?? product.price;
+            if (price !== item.price || isCartItemUnavailable({ ...product, price, selectedVariant: variant, quantity: item.quantity }, cart)) {
+                throw new Error('O preço ou estoque mudou. Remova o item do carrinho e adicione novamente antes de pagar.');
+            }
+        }
+    };
+
+    const handlePay = async () => {
+        if (loading) return;
         setLoading(true);
-        setTimeout(() => {
-            setLoading(false);
+        try {
+            await validateOrder();
             setStep('payment');
-        }, 1000);
+        } catch (error: any) {
+            showToast(error?.message || 'Não foi possível verificar o pedido.', 'error');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -163,6 +180,7 @@ const Checkout: React.FC = () => {
     };
 
     const handleFinish = async () => {
+        if (submitting) return;
         if (!proofFile) {
             alert("Please upload the payment proof to continue.");
             return;
@@ -175,6 +193,13 @@ const Checkout: React.FC = () => {
         }
 
         setSubmitting(true);
+        try {
+            await validateOrder();
+        } catch (error: any) {
+            showToast(error?.message || 'Não foi possível verificar o pedido.', 'error');
+            setSubmitting(false);
+            return;
+        }
 
         // Use user's email/name if available
         const baseName = user?.email?.split('@')[0] || "Customer";
