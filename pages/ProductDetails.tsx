@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useStore } from '../store';
 import { Product, ProductVariant } from '../types';
 import { ShoppingCart, ArrowLeft, ShieldCheck, Zap, Package, Minus, Plus, CreditCard, Check, Star, Headset, ChevronRight } from 'lucide-react';
@@ -7,6 +7,8 @@ import { ShoppingCart, ArrowLeft, ShieldCheck, Zap, Package, Minus, Plus, Credit
 const ProductDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const itemType = searchParams.get('tipo');
   const { getProductDetail, addToCart, formatPrice, currency, isVariantSoldOut } = useStore();
 
   const [product, setProduct] = useState<Product | null>(null);
@@ -24,7 +26,11 @@ const ProductDetails: React.FC = () => {
     getProductDetail(id!).then(detail => {
       if (cancelled) return;
       setProduct(detail);
-      const available = detail?.variants?.find(v => !isVariantSoldOut(v)) ?? detail?.variants?.[0];
+      const matchingVariants = itemType && detail?.category.toLowerCase() !== itemType.toLowerCase()
+        ? detail?.variants?.filter(v => v.category?.toLowerCase() === itemType.toLowerCase())
+        : detail?.variants;
+      const available = matchingVariants?.find(v => !isVariantSoldOut(v)) ?? matchingVariants?.[0]
+        ?? detail?.variants?.find(v => !isVariantSoldOut(v)) ?? detail?.variants?.[0];
       setSelectedVariantId(available?.id ?? null);
     }).catch(() => {
       if (!cancelled) setLoadError('Não foi possível carregar o produto. Atualize a página para tentar novamente.');
@@ -32,7 +38,7 @@ const ProductDetails: React.FC = () => {
       if (!cancelled) setLoadingProduct(false);
     });
     return () => { cancelled = true; };
-  }, [id, getProductDetail, isVariantSoldOut]);
+  }, [id, itemType, getProductDetail, isVariantSoldOut]);
 
   if (loadingProduct) {
     return (
@@ -59,6 +65,11 @@ const ProductDetails: React.FC = () => {
     if (!product.variants) return null;
     return product.variants.find(v => v.id === selectedVariantId) || null;
   };
+
+  const matchingTypeVariants = itemType && product.category.toLowerCase() !== itemType.toLowerCase()
+    ? product.variants?.filter(v => v.category?.toLowerCase() === itemType.toLowerCase())
+    : null;
+  const visibleVariants = matchingTypeVariants?.length ? matchingTypeVariants : product.variants;
 
   const currentVariant = getSelectedVariant();
   const currentPrice = currentVariant ? currentVariant.price : product.price;
@@ -255,12 +266,16 @@ const ProductDetails: React.FC = () => {
             {/* VARIATIONS SELECTOR MATCHING IMAGE 1 */}
             {product.variants && product.variants.length > 0 && (
               <div className="mt-8 border-t border-purple-950/80 pt-6">
-                <h3 className="text-sm font-extrabold uppercase tracking-wider text-white mb-3">
-                  Escolha uma opção
-                </h3>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-extrabold uppercase tracking-wider text-white">
+                    {matchingTypeVariants?.length ? `${itemType} · ${matchingTypeVariants.length} opções` : 'Escolha uma opção'}
+                  </h3>
+                  {matchingTypeVariants?.length ? <button type="button" onClick={() => setSearchParams({})}
+                    className="text-xs font-bold text-purple-300 hover:text-white">Ver todas as opções</button> : null}
+                </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {product.variants.map((v) => {
+                  {visibleVariants?.map((v) => {
                     const isSelected = selectedVariantId === v.id;
                     const variantSold = isVariantSoldOut(v);
 
@@ -287,6 +302,7 @@ const ProductDetails: React.FC = () => {
 
                           <div className="flex flex-col min-w-0">
                             <span className="text-xs font-bold text-white truncate">{v.name}</span>
+                            {v.category && <span className="text-[10px] text-purple-300">{v.category}</span>}
                             <span className="text-xs font-extrabold text-cyan-400">{formatPrice(v.price)}</span>
                           </div>
                         </div>

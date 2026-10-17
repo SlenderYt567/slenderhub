@@ -6,21 +6,23 @@ import { Link, useNavigate } from 'react-router-dom';
 
 interface ProductCardProps {
   product: Product;
+  categoryFilter?: string | null;
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
+const ProductCard: React.FC<ProductCardProps> = ({ product, categoryFilter }) => {
   const { addToCart, isAdmin, deleteProduct, formatPrice, isSoldOut } = useStore();
   const navigate = useNavigate();
   const [deleting, setDeleting] = useState(false);
   const [addedAnim, setAddedAnim] = useState(false);
 
   const soldOut = isSoldOut(product);
+  const detailUrl = `/product/${product.id}${categoryFilter ? `?tipo=${encodeURIComponent(categoryFilter)}` : ''}`;
 
   const handleQuickAdd = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (product.variants?.length) {
-      navigate(`/product/${product.id}`);
+      navigate(detailUrl);
       return;
     }
     const added = addToCart(product);
@@ -46,7 +48,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-purple-950/70 bg-[#0d1127] transition-all duration-300 hover:border-purple-500/50 hover:shadow-2xl hover:shadow-purple-600/20 hover:-translate-y-1.5">
       {/* Visual Product Box */}
-      <Link to={`/product/${product.id}`} className="relative aspect-square w-full overflow-hidden bg-[#090c1f] block">
+      <Link to={detailUrl} className="relative aspect-square w-full overflow-hidden bg-[#090c1f] block">
         {renderBadge()}
 
         {product.image ? (
@@ -90,7 +92,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         </div>
 
         {/* Title */}
-        <Link to={`/product/${product.id}`} className="block">
+        <Link to={detailUrl} className="block">
           <h3 className="line-clamp-1 text-base font-bold text-white group-hover:text-purple-300 transition-colors">
             {product.title}
           </h3>

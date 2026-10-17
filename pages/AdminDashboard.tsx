@@ -56,6 +56,7 @@ const AdminDashboard: React.FC = () => {
   // Games & Categories State
   const [games, setGames] = useState<RobloxGame[]>(getStoredGames());
   const [categories, setCategories] = useState<ProductCategory[]>(getStoredCategories());
+  const [categoryGameFilter, setCategoryGameFilter] = useState('all');
 
   // Modals State
   const [showNewGameModal, setShowNewGameModal] = useState(false);
@@ -72,6 +73,7 @@ const AdminDashboard: React.FC = () => {
 
   // New Category Form
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryGameId, setNewCategoryGameId] = useState('global');
 
   // Key stock state (Preserved as requested)
   const [stockList, setStockList] = useState<any[]>([]);
@@ -186,7 +188,10 @@ const AdminDashboard: React.FC = () => {
       return;
     }
     try {
-      await saveCategory({ name: newCategoryName.trim() });
+      await saveCategory({
+        name: newCategoryName.trim(),
+        gameId: newCategoryGameId === 'global' ? undefined : newCategoryGameId,
+      });
       setNewCategoryName('');
       setShowNewCategoryModal(false);
       showToast('Categoria salva para todos os visitantes.', 'success');
@@ -386,8 +391,8 @@ const AdminDashboard: React.FC = () => {
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
 
         {/* Top Header */}
-        <header className="h-16 border-b border-purple-950/60 bg-[#090c1f]/80 backdrop-blur-md px-6 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+        <header className="min-h-16 border-b border-purple-950/60 bg-[#090c1f]/80 backdrop-blur-md px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex max-w-full flex-wrap items-center gap-3">
             <h1 className="text-lg font-black text-white">
               {activeTab === 'dashboard' && 'Dashboard'}
               {activeTab === 'delivery' && 'Pedidos & Envio Roblox'}
@@ -402,7 +407,7 @@ const AdminDashboard: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex max-w-full flex-wrap items-center gap-3">
             {/* Quick Actions */}
             {(activeTab === 'dashboard' || activeTab === 'delivery') && (
               <button onClick={() => void refreshOrders()} disabled={ordersLoading}
@@ -422,7 +427,7 @@ const AdminDashboard: React.FC = () => {
 
             {activeTab === 'categories' && (
               <button
-                onClick={() => setShowNewCategoryModal(true)}
+                onClick={() => { setNewCategoryGameId(categoryGameFilter === 'all' ? 'global' : categoryGameFilter); setShowNewCategoryModal(true); }}
                 className="flex items-center gap-1.5 rounded-xl bg-purple-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-lg shadow-purple-600/30 hover:bg-purple-500 transition"
               >
                 <Plus className="h-3.5 w-3.5" /> Nova Categoria
@@ -430,7 +435,7 @@ const AdminDashboard: React.FC = () => {
             )}
 
             {/* Quick Tabs Nav */}
-            <div className="flex items-center bg-[#0e122b] p-1 rounded-xl border border-purple-950">
+            <div className="flex max-w-full items-center overflow-x-auto bg-[#0e122b] p-1 rounded-xl border border-purple-950">
               <button
                 onClick={() => handleTabChange('dashboard')}
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
@@ -454,6 +459,10 @@ const AdminDashboard: React.FC = () => {
                 }`}
               >
                 Jogos
+              </button>
+              <button onClick={() => handleTabChange('categories')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition ${activeTab === 'categories' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'}`}>
+                Categorias
               </button>
             </div>
           </div>
@@ -1111,21 +1120,40 @@ const AdminDashboard: React.FC = () => {
               <div>
                 <h2 className="text-lg font-black text-white">Categorias de Produtos</h2>
                 <p className="text-xs text-gray-400">
-                  Gerencie categorias (Pets, Gamepasses, Itens, Contas, etc.) para organizar seu catálogo.
+                  Organize os tipos de item por jogo. Categorias globais ficam disponíveis em todos os jogos.
                 </p>
               </div>
 
               <button
-                onClick={() => setShowNewCategoryModal(true)}
+                onClick={() => { setNewCategoryGameId(categoryGameFilter === 'all' ? 'global' : categoryGameFilter); setShowNewCategoryModal(true); }}
                 className="flex items-center gap-1.5 rounded-xl bg-purple-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-purple-600/30 hover:bg-purple-500 transition"
               >
                 <Plus className="h-4 w-4" /> Nova Categoria
               </button>
             </div>
 
+            <div className="flex flex-wrap items-center gap-3">
+              <label htmlFor="category-game-filter" className="text-xs font-bold text-gray-300">Mostrar categorias de</label>
+              <select id="category-game-filter" value={categoryGameFilter} onChange={e => setCategoryGameFilter(e.target.value)}
+                className="rounded-xl border border-purple-900 bg-[#0e122b] px-3 py-2 text-xs text-white">
+                <option value="all">Todos os jogos</option>
+                <option value="global">Globais</option>
+                {games.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {categories.map((c) => {
-                const count = products.filter(p => p.category.toLowerCase() === c.name.toLowerCase()).length;
+              {categories.filter(c => categoryGameFilter === 'all'
+                || (categoryGameFilter === 'global' ? !c.gameId : !c.gameId || c.gameId === categoryGameFilter)).map((c) => {
+                const linkedGame = games.find(g => g.id === c.gameId);
+                const countGame = linkedGame || games.find(g => g.id === categoryGameFilter);
+                const countItems = (gameName?: string) => products.reduce((total, p) => {
+                  if (gameName && p.game_name?.toLowerCase() !== gameName.toLowerCase()) return total;
+                  return total + Number(p.category.toLowerCase() === c.name.toLowerCase())
+                    + (p.variants?.filter(v => v.category?.toLowerCase() === c.name.toLowerCase()).length || 0);
+                }, 0);
+                const count = countItems(countGame?.name);
+                const totalLinkedCount = countItems(linkedGame?.name);
 
                 return (
                   <div key={c.id} className="rounded-2xl border border-purple-950/80 bg-[#0d1029] p-4 flex items-center justify-between hover:border-purple-500/40 transition">
@@ -1135,13 +1163,15 @@ const AdminDashboard: React.FC = () => {
                       </div>
                       <div>
                         <h4 className="text-sm font-bold text-white">{c.name}</h4>
-                        <span className="text-[11px] text-gray-400">{count} produtos vinculados</span>
+                        <span className="text-[11px] text-purple-300">{linkedGame?.name || 'Todos os jogos'}</span>
+                        <span className="mx-1 text-gray-600">·</span>
+                        <span className="text-[11px] text-gray-400">{count} {count === 1 ? 'item vinculado' : 'itens vinculados'}</span>
                       </div>
                     </div>
 
                     <button
                       onClick={async () => {
-                        if (count > 0) { showToast('A categoria contém produtos e não pode ser excluída.', 'error'); return; }
+                        if (totalLinkedCount > 0) { showToast('A categoria contém produtos e não pode ser excluída.', 'error'); return; }
                         if (!window.confirm(`Excluir a categoria "${c.name}"?`)) return;
                         try { await deleteStoredCategory(c.id); showToast('Categoria removida.', 'info'); }
                         catch (error) { showToast(error instanceof Error ? error.message : 'Falha ao excluir categoria.', 'error'); }
@@ -1299,9 +1329,17 @@ const AdminDashboard: React.FC = () => {
             </button>
 
             <h3 className="text-lg font-black text-white mb-1">Nova Categoria</h3>
-            <p className="text-xs text-gray-400 mb-4">Cadastre uma nova categoria de produto</p>
+            <p className="text-xs text-gray-400 mb-4">Cadastre um tipo de item para um jogo ou para todo o catálogo.</p>
 
             <form onSubmit={handleCreateCategorySubmit} className="space-y-4">
+              <div>
+                <label htmlFor="new-category-game" className="block text-xs font-bold text-gray-300 mb-1">Disponível em</label>
+                <select id="new-category-game" value={newCategoryGameId} onChange={e => setNewCategoryGameId(e.target.value)}
+                  className="w-full rounded-xl border border-purple-950 bg-[#070a1a] p-2.5 text-xs text-white">
+                  <option value="global">Todos os jogos</option>
+                  {games.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
+              </div>
               <div>
                 <label className="block text-xs font-bold text-gray-300 mb-1">Nome da Categoria *</label>
                 <input

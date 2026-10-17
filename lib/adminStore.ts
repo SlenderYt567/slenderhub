@@ -72,6 +72,7 @@ export const deleteStoredGame = async (gameId: string): Promise<void> => {
   const { error } = await supabase.from('store_games').delete().eq('id', gameId);
   if (error) throw error;
   await loadGames();
+  await loadCategories();
 };
 
 // ----------------------------------------------------
@@ -80,16 +81,18 @@ export const deleteStoredGame = async (gameId: string): Promise<void> => {
 export const getStoredCategories = (): ProductCategory[] => categoryCache;
 
 export const loadCategories = async (): Promise<ProductCategory[]> => {
-  const { data, error } = await supabase.from('store_categories').select('id,name').order('name');
+  const { data, error } = await supabase.from('store_categories').select('id,name,game_id').order('name');
   if (error) throw error;
-  categoryCache = data || [];
+  categoryCache = (data || []).map(({ id, name, game_id }) => ({ id, name, gameId: game_id || undefined }));
   notifyListeners();
   return categoryCache;
 };
 
 export const saveCategory = async (cat: Omit<ProductCategory, 'id'> & { id?: string }): Promise<ProductCategory> => {
-  const newCat: ProductCategory = { id: cat.id || `cat-${crypto.randomUUID()}`, name: cat.name.trim() };
-  const { error } = await supabase.from('store_categories').upsert(newCat, { onConflict: 'id' });
+  const newCat: ProductCategory = { id: cat.id || `cat-${crypto.randomUUID()}`, name: cat.name.trim(), gameId: cat.gameId };
+  const { error } = await supabase.from('store_categories').upsert({
+    id: newCat.id, name: newCat.name, game_id: newCat.gameId || null,
+  }, { onConflict: 'id' });
   if (error) throw error;
   await loadCategories();
   return newCat;

@@ -3,20 +3,23 @@ import { Search, Rocket, Shield, HelpCircle, Package, Headset, CreditCard, Star,
 import { useSearchParams } from 'react-router-dom';
 import { useStore } from '../store';
 import ProductCard from '../components/ProductCard';
-import { getStoredGames, loadGames, subscribeAdminStore } from '../lib/adminStore';
+import { getStoredGames, loadGames, getStoredCategories, loadCategories, subscribeAdminStore } from '../lib/adminStore';
 
 const Home: React.FC = () => {
   const { products, loading, productsError, reloadProducts } = useStore();
   const [searchParams] = useSearchParams();
   const [games, setGames] = useState(getStoredGames());
+  const [categories, setCategories] = useState(getStoredCategories());
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedItemCategory, setSelectedItemCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [showHowItWorks, setShowHowItWorks] = useState(false);
 
   useEffect(() => {
-    void loadGames().catch(() => undefined);
+    void Promise.all([loadGames(), loadCategories()]).catch(() => undefined);
     return subscribeAdminStore(() => {
       setGames(getStoredGames());
+      setCategories(getStoredCategories());
     });
   }, []);
 
@@ -24,6 +27,30 @@ const Home: React.FC = () => {
     { id: 'all', name: 'Todos' },
     ...games.map(g => ({ id: g.name, name: g.name, thumb: g.thumb })),
   ], [games]);
+
+  const activeGame = games.find(g => g.name.toLowerCase() === selectedCategory.toLowerCase());
+  const gameProducts = useMemo(() => activeGame ? products.filter(product => {
+    const productGame = product.game_name || '';
+    return productGame.toLowerCase() === activeGame.name.toLowerCase()
+      || (!productGame && (product.category.toLowerCase().includes(activeGame.name.toLowerCase())
+        || product.title.toLowerCase().includes(activeGame.name.toLowerCase())));
+  }) : [], [products, activeGame]);
+  const itemCategories = useMemo(() => {
+    if (!activeGame) return [];
+    const names = new Map<string, string>();
+    categories.filter(c => c.gameId === activeGame.id).forEach(c => names.set(c.name.toLowerCase(), c.name));
+    gameProducts.forEach(p => {
+      names.set(p.category.toLowerCase(), p.category);
+      p.variants?.forEach(v => {
+        if (v.category) names.set(v.category.toLowerCase(), v.category);
+      });
+    });
+    return [...names.values()].map(name => ({
+      name, count: gameProducts.reduce((total, p) => total
+        + Number(p.category.toLowerCase() === name.toLowerCase())
+        + (p.variants?.filter(v => v.category?.toLowerCase() === name.toLowerCase()).length || 0), 0),
+    })).filter(item => item.count > 0);
+  }, [activeGame, categories, gameProducts]);
 
   // Sync search from URL query (e.g. from navbar search)
   useEffect(() => {
@@ -33,6 +60,7 @@ const Home: React.FC = () => {
     setSelectedCategory(cat === 'featured' ? '__featured'
       : cat === 'gamepass' ? '__gamepasses'
       : cat === 'item' ? '__items' : 'all');
+    setSelectedItemCategory(null);
   }, [searchParams]);
 
   const filteredProducts = useMemo(() => {
@@ -41,7 +69,8 @@ const Home: React.FC = () => {
       const matchesSearch = !query ||
         product.title.toLowerCase().includes(query) ||
         product.category.toLowerCase().includes(query) ||
-        product.description.toLowerCase().includes(query);
+        product.description.toLowerCase().includes(query) ||
+        Boolean(product.variants?.some(v => v.name.toLowerCase().includes(query) || v.category?.toLowerCase().includes(query)));
 
       let matchesCat = true;
       if (selectedCategory === '__featured') matchesCat = Boolean(product.featured);
@@ -54,9 +83,12 @@ const Home: React.FC = () => {
             || product.title.toLowerCase().includes(selectedCategory.toLowerCase())));
       }
 
-      return matchesSearch && matchesCat;
+      const matchesItemCategory = !activeGame || !selectedItemCategory
+        || product.category.toLowerCase() === selectedItemCategory.toLowerCase()
+        || Boolean(product.variants?.some(v => v.category?.toLowerCase() === selectedItemCategory.toLowerCase()));
+      return matchesSearch && matchesCat && matchesItemCategory;
     });
-  }, [products, selectedCategory, searchQuery]);
+  }, [products, selectedCategory, selectedItemCategory, activeGame, searchQuery]);
 
   return (
     <div className="min-h-screen bg-[#070914] text-white">
@@ -184,7 +216,7 @@ const Home: React.FC = () => {
               return (
                 <button
                   key={cat.id}
-                  onClick={() => setSelectedCategory(cat.id)}
+                  onClick={() => { setSelectedCategory(cat.id); setSelectedItemCategory(null); }}
                   className={`flex w-28 shrink-0 flex-col items-center gap-2 rounded-2xl p-1.5 pb-2 text-center text-[11px] font-bold leading-tight transition-all sm:w-36 ${
                     isSelected
                       ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-600/30 scale-[1.03] ring-1 ring-purple-400'
@@ -207,6 +239,23 @@ const Home: React.FC = () => {
               );
             })}
           </div>
+          {activeGame && (
+            <div className="mt-5 border-t border-purple-950/50 pt-4">
+              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-purple-300">Tipos de item em {activeGame.name}</p>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => setSelectedItemCategory(null)} aria-pressed={selectedItemCategory === null}
+                  className={`rounded-full border px-3.5 py-2 text-xs font-bold transition ${selectedItemCategory === null ? 'border-purple-400 bg-purple-600 text-white' : 'border-purple-900 bg-[#0e132e] text-gray-300 hover:border-purple-500'}`}>
+                  Todos <span className="ml-1 opacity-70">{gameProducts.length}</span>
+                </button>
+                {itemCategories.map(item => (
+                  <button key={item.name} onClick={() => setSelectedItemCategory(item.name)} aria-pressed={selectedItemCategory === item.name}
+                    className={`rounded-full border px-3.5 py-2 text-xs font-bold transition ${selectedItemCategory === item.name ? 'border-purple-400 bg-purple-600 text-white' : 'border-purple-900 bg-[#0e132e] text-gray-300 hover:border-purple-500'}`}>
+                    {item.name} <span className="ml-1 opacity-70">{item.count}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
@@ -240,6 +289,7 @@ const Home: React.FC = () => {
             <button
               onClick={() => {
                 setSelectedCategory('all');
+                setSelectedItemCategory(null);
                 setSearchQuery('');
               }}
               className="text-xs font-bold text-purple-400 hover:text-purple-300 flex items-center gap-1 transition"
@@ -268,7 +318,7 @@ const Home: React.FC = () => {
         ) : filteredProducts.length > 0 ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {filteredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard key={product.id} product={product} categoryFilter={activeGame ? selectedItemCategory : null} />
             ))}
           </div>
         ) : (

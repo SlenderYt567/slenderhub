@@ -34,6 +34,13 @@ const ProductForm: React.FC<ProductFormProps> = ({ mode }) => {
   const [fullDesc, setFullDesc] = useState('');
   const [category, setCategory] = useState('Pets');
   const [game, setGame] = useState(initialGameParam);
+  const selectedGameId = games.find(g => g.name === game)?.id;
+  const availableCategories = useMemo(() => {
+    const unique = new Map<string, ProductCategory>();
+    categories.filter(c => !c.gameId || c.gameId === selectedGameId)
+      .forEach(c => unique.set(c.name.toLowerCase(), c));
+    return [...unique.values()];
+  }, [categories, selectedGameId]);
   const [price, setPrice] = useState('');
   const [originalPrice, setOriginalPrice] = useState('');
   const [stock, setStock] = useState('');
@@ -153,8 +160,16 @@ const ProductForm: React.FC<ProductFormProps> = ({ mode }) => {
   const handleSaveQuickCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!quickCatName.trim()) return;
+    if (!selectedGameId) {
+      showToast('Selecione um jogo antes de criar uma categoria para ele.', 'error');
+      return;
+    }
+    if (availableCategories.some(c => c.name.toLowerCase() === quickCatName.trim().toLowerCase())) {
+      showToast('Esta categoria já está disponível para o jogo.', 'error');
+      return;
+    }
     try {
-      const created = await saveCategory({ name: quickCatName.trim() });
+      const created = await saveCategory({ name: quickCatName.trim(), gameId: selectedGameId });
       setCategory(created.name);
       setQuickCatName('');
       setShowQuickAddCat(false);
@@ -458,10 +473,10 @@ const ProductForm: React.FC<ProductFormProps> = ({ mode }) => {
                       onChange={(e) => setCategory(e.target.value)}
                       className="w-full rounded-xl border border-purple-950 bg-[#080b1c] p-3 text-xs text-white focus:outline-none focus:border-purple-500"
                     >
-                      {category && !categories.some(c => c.name === category) && (
+                      {category && !availableCategories.some(c => c.name === category) && (
                         <option value={category}>{category} (categoria antiga)</option>
                       )}
-                      {categories.map((c) => (
+                      {availableCategories.map((c) => (
                         <option key={c.id} value={c.name}>{c.name}</option>
                       ))}
                     </select>
@@ -484,7 +499,14 @@ const ProductForm: React.FC<ProductFormProps> = ({ mode }) => {
 
                     <select
                       value={game}
-                      onChange={(e) => setGame(e.target.value)}
+                      onChange={(e) => {
+                        const nextGame = e.target.value;
+                        const nextGameId = games.find(g => g.name === nextGame)?.id;
+                        setGame(nextGame);
+                        if (!categories.some(c => c.name === category && (!c.gameId || c.gameId === nextGameId))) {
+                          setCategory('Pets');
+                        }
+                      }}
                       className="w-full rounded-xl border border-purple-950 bg-[#080b1c] p-3 text-xs text-white focus:outline-none focus:border-purple-500"
                     >
                       {games.map((g) => (
@@ -629,7 +651,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ mode }) => {
                   {variants.map((v) => (
                     <div
                       key={v.id}
-                      className="flex items-center gap-2.5 rounded-2xl border border-purple-950 bg-[#090c21] p-3 transition hover:border-purple-800"
+                      className="flex flex-wrap items-center gap-2.5 rounded-2xl border border-purple-950 bg-[#090c21] p-3 transition hover:border-purple-800"
                     >
                       <GripVertical className="h-4 w-4 text-gray-600 shrink-0 cursor-grab" />
 
@@ -652,6 +674,14 @@ const ProductForm: React.FC<ProductFormProps> = ({ mode }) => {
                         placeholder="Nome da variação"
                         className="flex-1 rounded-lg border border-purple-950 bg-[#060817] px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500"
                       />
+
+                      <select value={v.category || ''} onChange={e => handleUpdateVariant(v.id, 'category', e.target.value || undefined)}
+                        aria-label={`Tipo de item da variação ${v.name || 'sem nome'}`}
+                        className="w-32 rounded-lg border border-purple-950 bg-[#060817] px-2 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500">
+                        <option value="">Tipo do produto</option>
+                        {v.category && !availableCategories.some(c => c.name === v.category) && <option value={v.category}>{v.category}</option>}
+                        {availableCategories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                      </select>
 
                       <div className="relative w-24">
                         <span className="absolute left-2 top-2 text-[10px] text-gray-500">$</span>
@@ -905,7 +935,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ mode }) => {
               <X className="h-5 w-5" />
             </button>
             <h3 className="text-base font-black text-white mb-1">Cadastrar Nova Categoria</h3>
-            <p className="text-xs text-gray-400 mb-4">Adicione a categoria para este produto</p>
+            <p className="text-xs text-gray-400 mb-4">Adicione um tipo de item para {game || 'o jogo selecionado'}.</p>
             <form onSubmit={handleSaveQuickCategory} className="space-y-3.5">
               <div>
                 <label className="block text-xs font-bold text-gray-300 mb-1">Nome da Categoria *</label>

@@ -134,7 +134,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [messages, setMessages] = useState<ChatMessage[]>([]);
 
   // Product cache (sessionStorage) — evita refetch no reload/navegação
-  const PRODUCTS_CACHE_KEY = 'slenderhub_products_v3';
+  const PRODUCTS_CACHE_KEY = 'slenderhub_products_v4';
   const PRODUCTS_CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 
   // FETCH DATA ON LOAD
