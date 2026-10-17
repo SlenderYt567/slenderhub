@@ -209,6 +209,20 @@ const ProductForm: React.FC<ProductFormProps> = ({ mode }) => {
       showToast('Revise o nome, preço e estoque das variações.', 'error');
       return;
     }
+    const validImageSource = (source: string) => {
+      if (!source || source.startsWith('/') || source.startsWith('data:image/')
+        || /^([\w.-]+\/)*[\w.-]+\.(png|jpe?g|webp|gif|avif)(\?.*)?$/i.test(source)) return true;
+      try {
+        const url = new URL(source);
+        return (url.protocol === 'http:' || url.protocol === 'https:') && Boolean(url.hostname);
+      } catch {
+        return false;
+      }
+    };
+    if (!validImageSource(image) || variants.some(v => !validImageSource(v.image || ''))) {
+      showToast('Use uma URL http ou https válida para a imagem.', 'error');
+      return;
+    }
 
     savingRef.current = true;
     setSaving(true);
@@ -713,6 +727,17 @@ const ProductForm: React.FC<ProductFormProps> = ({ mode }) => {
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
+                      <label className="w-full pl-7 text-[11px] text-gray-400">
+                        URL da imagem da variação
+                        <input
+                          type="text"
+                          inputMode="url"
+                          value={v.image || ''}
+                          onChange={e => handleUpdateVariant(v.id, 'image', e.target.value)}
+                          placeholder="https://exemplo.com/pet.png"
+                          className="mt-1 w-full rounded-lg border border-purple-950 bg-[#060817] px-2.5 py-2 text-xs text-white placeholder:text-gray-600 focus:border-purple-500 focus:outline-none"
+                        />
+                      </label>
                     </div>
                   ))}
                 </div>
@@ -738,7 +763,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ mode }) => {
                   <ImageIcon className="h-4 w-4 text-purple-400" />
                   <div>
                     <h3 className="text-sm font-black text-white">Imagem do Produto</h3>
-                    <p className="text-[11px] text-gray-400">Faça upload de uma imagem para o produto.</p>
+                    <p className="text-[11px] text-gray-400">Envie um arquivo ou informe a URL da imagem.</p>
                   </div>
                 </div>
 
@@ -758,6 +783,18 @@ const ProductForm: React.FC<ProductFormProps> = ({ mode }) => {
                     />
                   </label>
                 </div>
+                <label className="block text-[11px] text-gray-400">
+                  URL da imagem do produto
+                  <input
+                    type="text"
+                    inputMode="url"
+                    value={image.startsWith('data:') ? '' : image}
+                    onChange={e => setImage(e.target.value)}
+                    placeholder="https://exemplo.com/produto.png"
+                    className="mt-1 w-full rounded-lg border border-purple-950 bg-[#060817] px-3 py-2 text-xs text-white placeholder:text-gray-600 focus:border-purple-500 focus:outline-none"
+                  />
+                  {image.startsWith('data:') && <span className="mt-1 block text-gray-500">Imagem enviada como arquivo. Cole uma URL para substituí-la.</span>}
+                </label>
 
                 <div className="flex items-center gap-2.5">
                   {['/images/fire_dragon.jpg', '/images/shinigami.jpg', '/images/gargantuan.jpg'].map((sampleImg, i) => (
