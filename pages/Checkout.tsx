@@ -52,7 +52,7 @@ const CRYPTO_COINS: CryptoCoin[] = [
         network: 'ERC-20 (Ethereum)',
         warning: 'Send ONLY via ERC-20 (Ethereum) network. Other networks (BEP-20/TRC-20) will be lost.',
         addressEnv: 'VITE_CRYPTO_ADDRESS_USDT',
-        addressFallback: '0x7ac5bb9341df0f1462466c36d02e69aa1140d1e5',
+        addressFallback: 'COLOQUE_SEU_ENDERECO_USDT',
     },
     {
         id: 'litecoin',
@@ -101,6 +101,7 @@ const Checkout: React.FC = () => {
     const [cryptoPriceLoaded, setCryptoPriceLoaded] = useState(false);
     const [copiedAddress, setCopiedAddress] = useState(false);
     const [contactEmail, setContactEmail] = useState(user?.email || '');
+    const [robloxUsername, setRobloxUsername] = useState('');
     const [emailError, setEmailError] = useState(false);
 
     // Specific Pix Key (configure via env var ou fallback)
@@ -191,6 +192,10 @@ const Checkout: React.FC = () => {
             alert("Por favor insira um e-mail válido para entrega.");
             return;
         }
+        if (!robloxUsername.trim()) {
+            showToast('Informe seu usuário do Roblox para a entrega.', 'error');
+            return;
+        }
 
         setSubmitting(true);
         try {
@@ -229,7 +234,19 @@ const Checkout: React.FC = () => {
           .finally(() => clearTimeout(emailTimeout));
 
         try {
-            const chatId = await createChat(customerNameAndEmail, proofFile || '', totalCartValue);
+            const chatId = await createChat(customerNameAndEmail, proofFile || '', totalCartValue, {
+                contactEmail: emailToDisplay,
+                robloxUsername: robloxUsername.trim(),
+                paymentMethod: methodLabel,
+                items: cart.map(item => ({
+                    productId: item.id,
+                    title: item.title,
+                    variant: item.selectedVariant?.name,
+                    quantity: item.quantity,
+                    unitPrice: item.price,
+                    image: item.selectedVariant?.image || item.image,
+                })),
+            });
             setCreatedChatId(chatId);
             clearCart();
             setStep('success');
@@ -396,16 +413,16 @@ const Checkout: React.FC = () => {
                                     </div>
                                     <div className={`h-4 w-4 rounded-full border-[3px] ${paymentMethod === 'crypto' ? 'border-green-500' : 'border-slate-600'}`}></div>
                                 </button>
-                                
+
                                 <div className="mt-4 rounded-xl bg-slate-900/50 p-4 border border-slate-800">
                                     <div className="flex items-start gap-3">
                                         <HelpCircle className="h-5 w-5 text-blue-400 shrink-0 mt-0.5" />
                                         <div>
                                             <p className="text-xs font-medium text-gray-300">Need help with payment?</p>
                                             <p className="text-[10px] text-gray-500 mt-1">Contact us on Discord for support or manual payment methods.</p>
-                                            <a 
-                                                href="https://discord.gg/2B8TQ7A3MV" 
-                                                target="_blank" 
+                                            <a
+                                                href="https://discord.gg/2B8TQ7A3MV"
+                                                target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="text-[10px] text-blue-400 hover:underline mt-1 inline-block"
                                             >
@@ -479,6 +496,12 @@ const Checkout: React.FC = () => {
                                             className={`w-full rounded-lg border bg-slate-950 p-3 text-sm text-white focus:outline-none focus:ring-2 ${emailError ? 'border-red-500 focus:ring-red-500/50' : 'border-slate-700 focus:border-blue-500 focus:ring-blue-500/50'}`}
                                         />
                                         {emailError && <p className="mt-1 text-xs text-red-500">Please provide a valid email.</p>}
+                                    </div>
+                                    <div className="mb-6">
+                                        <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-gray-500">Usuário do Roblox *</label>
+                                        <input type="text" value={robloxUsername} onChange={e => setRobloxUsername(e.target.value.trim())}
+                                            placeholder="Seu nome de usuário no Roblox"
+                                            className="w-full rounded-lg border border-slate-700 bg-slate-950 p-3 text-sm text-white focus:border-purple-500 focus:outline-none" />
                                     </div>
 
                                     <div className="mb-6 rounded-xl border border-dashed border-slate-700 bg-slate-900/50 p-6 text-center">
@@ -606,6 +629,12 @@ const Checkout: React.FC = () => {
                                             className={`w-full rounded-lg border bg-slate-950 p-3 text-sm text-white focus:outline-none focus:ring-2 ${emailError ? 'border-red-500 focus:ring-red-500/50' : 'border-slate-700 focus:border-blue-500 focus:ring-blue-500/50'}`}
                                         />
                                         {emailError && <p className="mt-1 text-xs text-red-500">Please provide a valid email.</p>}
+                                    </div>
+                                    <div className="mb-6">
+                                        <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-gray-500">Usuário do Roblox *</label>
+                                        <input type="text" value={robloxUsername} onChange={e => setRobloxUsername(e.target.value.trim())}
+                                            placeholder="Seu nome de usuário no Roblox"
+                                            className="w-full rounded-lg border border-slate-700 bg-slate-950 p-3 text-sm text-white focus:border-purple-500 focus:outline-none" />
                                     </div>
 
                                     <div className="mb-6 rounded-xl border border-dashed border-slate-700 bg-slate-900/50 p-6 text-center">

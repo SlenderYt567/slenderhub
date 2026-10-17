@@ -1,226 +1,350 @@
-import React, { useState, useMemo } from 'react';
-import { Search, Filter, Rocket, Shield, Terminal, Star, Quote } from 'lucide-react';
-import { Link } from 'react-router-dom';
-
-const STORE_REVIEWS = [
-  { id: 1, name: 'ShadowGamer99', content: 'Instant delivery! Bought Robux and gamepass, arrived instantly. Best store, highly recommend 10/10!', rating: 5, date: '1 day ago' },
-  { id: 2, name: 'RX_Sniper', content: 'Bought rare items and received them seconds later. Everything working 100%. Completely trustworthy site.', rating: 5, date: '3 days ago' },
-  { id: 3, name: 'Lucas_Blox', content: 'Excellent support and fair prices. Gamepasses are original and delivery is automatic.', rating: 5, date: '1 week ago' }
-];
-
+import React, { useState, useMemo, useEffect } from 'react';
+import { Search, Rocket, Shield, HelpCircle, Package, Headset, CreditCard, Star, ArrowRight, Gamepad2, ChevronRight, CheckCircle2, X } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { useStore } from '../store';
 import ProductCard from '../components/ProductCard';
+import { getStoredGames, loadGames, subscribeAdminStore } from '../lib/adminStore';
 
 const Home: React.FC = () => {
   const { products, loading, productsError, reloadProducts } = useStore();
-  const [activeCategory, setActiveCategory] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchParams] = useSearchParams();
+  const [games, setGames] = useState(getStoredGames());
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
 
-  const TABS = [
-    { id: 'all', label: 'All Products' },
-    { id: 'gamepass', label: 'Gamepasses' },
-    { id: 'robux', label: 'Robux' },
-    { id: 'item', label: 'Game Items' },
-    ...Array.from(new Set(products.map(p => p.category))).filter(c => !['gamepass', 'robux', 'item'].includes(c)).map(c => ({ id: c, label: c })),
-  ];
+  useEffect(() => {
+    void loadGames().catch(() => undefined);
+    return subscribeAdminStore(() => {
+      setGames(getStoredGames());
+    });
+  }, []);
+
+  const gameCategories = useMemo<{ id: string; name: string; thumb?: string }[]>(() => [
+    { id: 'all', name: 'Todos' },
+    ...games.map(g => ({ id: g.name, name: g.name, thumb: g.thumb })),
+  ], [games]);
+
+  // Sync search from URL query (e.g. from navbar search)
+  useEffect(() => {
+    const q = searchParams.get('q');
+    const cat = searchParams.get('cat');
+    setSearchQuery(q || '');
+    setSelectedCategory(cat === 'featured' ? '__featured'
+      : cat === 'gamepass' ? '__gamepasses'
+      : cat === 'item' ? '__items' : 'all');
+  }, [searchParams]);
 
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
-      const matchesCategory = activeCategory === 'all' || product.category === activeCategory;
-      const matchesSearch = product.title.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
+      const query = searchQuery.trim().toLowerCase();
+      const matchesSearch = !query ||
+        product.title.toLowerCase().includes(query) ||
+        product.category.toLowerCase().includes(query) ||
+        product.description.toLowerCase().includes(query);
+
+      let matchesCat = true;
+      if (selectedCategory === '__featured') matchesCat = Boolean(product.featured);
+      else if (selectedCategory === '__gamepasses') matchesCat = /gamepass/i.test(product.category);
+      else if (selectedCategory === '__items') matchesCat = !/gamepass/i.test(product.category);
+      else if (selectedCategory !== 'all') {
+        const productGame = product.game_name || '';
+        matchesCat = productGame.toLowerCase() === selectedCategory.toLowerCase()
+          || (!productGame && (product.category.toLowerCase().includes(selectedCategory.toLowerCase())
+            || product.title.toLowerCase().includes(selectedCategory.toLowerCase())));
+      }
+
+      return matchesSearch && matchesCat;
     });
-  }, [products, activeCategory, searchQuery]);
+  }, [products, selectedCategory, searchQuery]);
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden border-b border-slate-800 bg-[#0B1120] px-4 py-20 sm:px-6 lg:px-8">
-        <div
-          className="absolute inset-0 opacity-10 mix-blend-overlay"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='none'/%3E%3Ccircle cx='60' cy='60' r='42' fill='none' stroke='%233b82f6' stroke-width='1'/%3E%3Ccircle cx='60' cy='60' r='24' fill='none' stroke='%233b82f6' stroke-width='1'/%3E%3Cpath d='M60 0v18M60 102v18M0 60h18M102 60h18' stroke='%233b82f6' stroke-width='1'/%3E%3C/svg%3E")`,
-            backgroundSize: '120px 120px',
-          }}
-        ></div>
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 to-transparent"></div>
-        
-        <div className="relative mx-auto max-w-7xl text-center">
-          <div className="mb-6 inline-flex items-center rounded-full border border-blue-500/30 bg-blue-500/10 px-4 py-1.5 text-sm font-semibold text-blue-400 backdrop-blur-md">
-            <span className="mr-2 flex h-2 w-2 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-            </span>
-            Slender Hub V2 is Live
-          </div>
-          <h1 className="mb-6 bg-gradient-to-br from-white via-gray-200 to-gray-500 bg-clip-text text-5xl font-extrabold tracking-tight text-transparent sm:text-7xl">
-            Level Up Your <br />
-            <span className="text-blue-500">Roblox Experience</span>
-          </h1>
-          <p className="mx-auto mb-10 max-w-2xl text-lg text-gray-400">
-            Gamepasses, exclusive items, and Robux with instant delivery. 
-            Secure payments, 24/7 support. The best store to level up your Roblox experience.
-          </p>
-          <div className="flex flex-col justify-center gap-4 sm:flex-row">
-            <button onClick={() => document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' })} className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-8 py-3.5 text-base font-bold text-white transition hover:bg-blue-500 hover:shadow-lg hover:shadow-blue-500/25">
-              <Rocket className="h-5 w-5" />
-              Browse Products
-            </button>
-            <Link to="/scripts" className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800/50 px-8 py-3.5 text-base font-bold text-white backdrop-blur-sm transition hover:bg-slate-800">
-              <Terminal className="h-5 w-5" />
-              Get Scripts
-            </Link>
+    <div className="min-h-screen bg-[#070914] text-white">
+
+      {/* Panoramic hero */}
+      <section className="relative overflow-hidden border-b border-purple-950/40 bg-[#080b20] pt-12 pb-10 lg:pt-20 lg:pb-12">
+        <div className="absolute inset-0 bg-cover bg-[position:78%_center] opacity-75 lg:bg-center lg:opacity-100" style={{ backgroundImage: 'url(/images/hero-v2.webp)' }} />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#070914] via-[#070914]/95 to-[#070914]/25 lg:via-[#070914]/80 lg:to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#070914] via-transparent to-[#070914]/10" />
+        {/* Ambient background glow effects */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-purple-600/15 blur-[140px] pointer-events-none rounded-full" />
+        <div className="absolute top-12 left-10 w-96 h-96 bg-indigo-600/10 blur-[120px] pointer-events-none rounded-full" />
+        <div className="absolute right-0 top-1/3 w-96 h-96 bg-cyan-600/10 blur-[130px] pointer-events-none rounded-full" />
+
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid min-h-[430px] grid-cols-1 items-center gap-12 lg:grid-cols-12">
+
+            {/* Left Hero Text */}
+            <div className="lg:col-span-7 flex flex-col items-start text-left">
+              {/* Badge */}
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-purple-500/30 bg-purple-950/60 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-purple-300 shadow-lg shadow-purple-900/20 backdrop-blur-md">
+                <Shield className="h-3.5 w-3.5 text-purple-400" />
+                <span>A sua loja de itens Roblox</span>
+              </div>
+
+              {/* Headline */}
+              <h1 className="max-w-3xl text-4xl font-black tracking-tight text-white sm:text-6xl lg:text-[4.3rem] leading-[1.04]">
+                EVOLUA NO ROBLOX <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-indigo-300 to-cyan-400">
+                  COM SEGURANÇA
+                </span>
+              </h1>
+
+              {/* Subtitle */}
+              <p className="mt-6 max-w-xl text-base sm:text-lg text-gray-300/90 leading-relaxed font-normal">
+                Gamepasses, itens, pets e muito mais dos seus jogos favoritos. Entrega manual, suporte rápido e preços incríveis.
+              </p>
+
+              {/* CTAs */}
+              <div className="mt-8 flex flex-wrap items-center gap-4">
+                <button
+                  onClick={() => document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 px-7 py-3.5 text-sm font-bold text-white shadow-xl shadow-purple-600/30 transition-all hover:scale-105 active:scale-95"
+                >
+                  <Rocket className="h-4 w-4" />
+                  Ver produtos
+                </button>
+
+                <button
+                  onClick={() => setShowHowItWorks(true)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-purple-900/50 bg-[#0f1430]/70 px-6 py-3.5 text-sm font-bold text-gray-200 backdrop-blur-md transition-all hover:border-purple-500/50 hover:bg-[#141b40] hover:text-white"
+                >
+                  <HelpCircle className="h-4 w-4 text-purple-400" />
+                  Como funciona?
+                </button>
+              </div>
+            </div>
+
+            <div className="hidden lg:col-span-5 lg:flex h-full items-end justify-end pb-4">
+              <div className="rounded-2xl border border-purple-400/40 bg-[#0c0f2b]/80 px-5 py-3 text-center text-xs font-black uppercase tracking-wide text-cyan-200 shadow-xl backdrop-blur-md">
+                Pets exclusivos · Gamepasses · Itens raros
+              </div>
+            </div>
+
           </div>
 
-          {/* 10k+ Sales Indicator */}
-          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row text-sm text-gray-400">
-             <div className="flex -space-x-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 ring-4 ring-[#0B1120] text-sm font-bold text-white">S</div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-purple-600 to-pink-600 ring-4 ring-[#0B1120] text-sm font-bold text-white">R</div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 to-teal-600 ring-4 ring-[#0B1120] text-sm font-bold text-white">L</div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-full ring-4 ring-[#0B1120] bg-slate-800 relative shadow-inner">
-                   <span className="text-[10px] font-bold text-white">10k+</span>
-                </div>
-             </div>
-             <div className="flex flex-col items-start gap-0.5">
-               <span className="flex items-center gap-1 font-bold text-white">
-                 <Star className="h-3.5 w-3.5 fill-yellow-500 text-yellow-500" />
-                 <Star className="h-3.5 w-3.5 fill-yellow-500 text-yellow-500" />
-                 <Star className="h-3.5 w-3.5 fill-yellow-500 text-yellow-500" />
-                 <Star className="h-3.5 w-3.5 fill-yellow-500 text-yellow-500" />
-                 <Star className="h-3.5 w-3.5 fill-yellow-500 text-yellow-500" />
-               </span>
-               <span className="text-gray-400">More than <strong className="text-white font-extrabold text-blue-400">10,000</strong> sales completed</span>
-             </div>
+          {/* 4 VALUE PROPOSITIONS BAR MATCHING IMAGE 1 */}
+          <div className="mt-14 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:gap-4">
+
+            {/* 1. Entrega Manual */}
+            <div className="flex items-center gap-3.5 rounded-2xl border border-purple-950/60 bg-[#0e122b]/80 p-4 backdrop-blur-md transition hover:border-purple-500/40">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-purple-600/15 text-purple-400 border border-purple-500/20">
+                <Package className="h-5 w-5" />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-sm font-bold text-white truncate">Entrega Manual</span>
+                <span className="text-xs text-gray-400 truncate">Segura e confiável</span>
+              </div>
+            </div>
+
+            {/* 2. Suporte 24/7 */}
+            <div className="flex items-center gap-3.5 rounded-2xl border border-purple-950/60 bg-[#0e122b]/80 p-4 backdrop-blur-md transition hover:border-purple-500/40">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-600/15 text-indigo-400 border border-indigo-500/20">
+                <Headset className="h-5 w-5" />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-sm font-bold text-white truncate">Suporte</span>
+                <span className="text-xs text-gray-400 truncate">via Discord e Email</span>
+              </div>
+            </div>
+
+            {/* 3. Pagamentos Seguros */}
+            <div className="flex items-center gap-3.5 rounded-2xl border border-purple-950/60 bg-[#0e122b]/80 p-4 backdrop-blur-md transition hover:border-purple-500/40">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-cyan-600/15 text-cyan-400 border border-cyan-500/20">
+                <CreditCard className="h-5 w-5" />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-sm font-bold text-white truncate">Pagamentos Seguros</span>
+                <span className="text-xs text-gray-400 truncate">Pix e cripto</span>
+              </div>
+            </div>
+
+            {/* 4. Mais de 10.000+ */}
+            <div className="flex items-center gap-3.5 rounded-2xl border border-purple-950/60 bg-[#0e122b]/80 p-4 backdrop-blur-md transition hover:border-purple-500/40">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-600/15 text-amber-400 border border-amber-500/20">
+                <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-sm font-bold text-white truncate">Jogos favoritos</span>
+                <span className="text-xs text-gray-400 truncate">Itens e gamepasses</span>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+      {/* GAME / CATEGORY CHIPS BAR MATCHING IMAGE 1 */}
+      <section id="games" className="border-b border-purple-950/40 bg-[#080b1a] py-6">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide no-scrollbar">
+            {gameCategories.map((cat) => {
+              const isSelected = selectedCategory === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className={`flex w-28 shrink-0 flex-col items-center gap-2 rounded-2xl p-1.5 pb-2 text-center text-[11px] font-bold leading-tight transition-all sm:w-36 ${
+                    isSelected
+                      ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-600/30 scale-[1.03] ring-1 ring-purple-400'
+                      : 'border border-purple-950/60 bg-[#0e132e] text-gray-300 hover:border-purple-500/40 hover:bg-[#141a40] hover:text-white'
+                  }`}
+                >
+                  {cat.thumb ? (
+                    <img
+                      src={cat.thumb}
+                      alt={cat.name}
+                    className="h-16 w-full rounded-xl object-cover ring-1 ring-purple-500/30 sm:h-20"
+                    />
+                  ) : (
+                    <div className="flex h-16 w-full items-center justify-center rounded-xl bg-purple-950 text-purple-300 sm:h-20">
+                      <Gamepad2 className="h-7 w-7" />
+                    </div>
+                  )}
+                  <span className="line-clamp-2 min-h-7">{cat.name}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </section>
 
-      {/* Filter & Search Bar */}
-      <div id="catalog" className="sticky top-16 z-40 scroll-mt-16 border-b border-slate-800 bg-slate-950/95 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-hide">
-                {TABS.map((tab) => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveCategory(tab.id)}
-                        className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                            activeCategory === tab.id
-                                ? 'bg-white text-slate-950 shadow-md'
-                                : 'bg-slate-900 text-gray-400 hover:bg-slate-800 hover:text-white'
-                        }`}
-                    >
-                        {tab.label}
-                    </button>
-                ))}
-            </div>
+      {/* MAIN CATALOG & PRODUCTS EM DESTAQUE */}
+      <main id="catalog" className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
 
+        {/* Section Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <div>
+            <h2 className="text-2xl font-black text-white flex items-center gap-2">
+              Produtos da loja
+            </h2>
+            <p className="text-xs text-gray-400 mt-1">
+              Explore os itens e gamepasses disponíveis no catálogo.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Search Input Filter */}
             <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-                <input
-                    type="text"
-                    placeholder="Search for products..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full rounded-lg border border-slate-800 bg-slate-900 py-2 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:w-64"
-                />
+              <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-gray-500" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Filtrar catálogo..."
+                className="rounded-xl border border-purple-900/40 bg-[#0e122b] py-2 pl-9 pr-3 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 w-44 sm:w-56"
+              />
             </div>
-        </div>
-      </div>
 
-      {/* Products Grid */}
-      <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-bold text-white">Latest Arrivals</h2>
-            <div className="flex items-center gap-2 text-sm text-gray-400">
-                <span className="h-2 w-2 rounded-full bg-green-500"></span>
-                {filteredProducts.length} items found
-            </div>
+            <button
+              onClick={() => {
+                setSelectedCategory('all');
+                setSearchQuery('');
+              }}
+              className="text-xs font-bold text-purple-400 hover:text-purple-300 flex items-center gap-1 transition"
+            >
+              Ver todos <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
-        
-        {productsError && <div role="alert" className="mb-6 rounded-lg border border-red-500/30 p-4 text-red-300">{productsError}<button onClick={() => void reloadProducts()} className="ml-4 underline">Tentar novamente</button></div>}
-        {loading && products.length === 0 ? <p role="status" className="py-12 text-center text-gray-400">Carregando catálogo…</p> : filteredProducts.length > 0 ? (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+
+        {/* Error message */}
+        {productsError && (
+          <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-xs text-red-300 flex items-center justify-between">
+            <span>{productsError}</span>
+            <button onClick={() => void reloadProducts()} className="underline font-bold">
+              Tentar novamente
+            </button>
+          </div>
+        )}
+
+        {/* Loading state */}
+        {loading && products.length === 0 ? (
+          <div className="py-20 text-center">
+            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-purple-500 border-t-transparent" />
+            <p className="mt-4 text-sm font-semibold text-gray-400">Carregando catálogo Slender Hub…</p>
+          </div>
+        ) : filteredProducts.length > 0 ? (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {filteredProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
+              <ProductCard key={product.id} product={product} />
             ))}
-            </div>
+          </div>
         ) : (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-                <div className="rounded-full bg-slate-900 p-6 mb-4">
-                    <Filter className="h-12 w-12 text-gray-600" />
-                </div>
-                <h3 className="text-xl font-bold text-white">No products found</h3>
-                <p className="text-gray-500">Try adjusting your filters or search query.</p>
-            </div>
+          <div className="rounded-3xl border border-purple-950/60 bg-[#0e122b]/50 py-16 px-4 text-center">
+            <Package className="mx-auto h-12 w-12 text-purple-400/40 mb-3" />
+            <h3 className="text-lg font-bold text-white">Nenhum produto encontrado</h3>
+            <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
+              Tente selecionar outra categoria ou limpar a busca para visualizar mais opções.
+            </p>
+            <button
+              onClick={() => { setSelectedCategory('all'); setSearchQuery(''); }}
+              className="mt-4 rounded-xl bg-purple-600/30 border border-purple-500/40 px-4 py-2 text-xs font-bold text-purple-300 hover:bg-purple-600/50 transition"
+            >
+              Resetar Filtros
+            </button>
+          </div>
         )}
       </main>
 
-      {/* Reviews Section */}
-      <section className="border-t border-slate-800 bg-[#0B1120] py-16 relative overflow-hidden">
-        {/* Decorative elements */}
-        <div className="absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500/10 p-32 blur-3xl"></div>
-        <div className="absolute right-0 bottom-0 translate-x-1/2 translate-y-1/2 rounded-full bg-purple-500/10 p-32 blur-3xl"></div>
-        
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
-                <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-                    What our <span className="text-blue-500">Customers say</span>
-                </h2>
-                <p className="mt-4 text-lg text-gray-400">Satisfaction is guaranteed. Check out the reviews from those who have already bought from us.</p>
-            </div>
-            
-            <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
-                {STORE_REVIEWS.map(review => (
-                    <div key={review.id} className="relative rounded-2xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl backdrop-blur-md transition-all hover:-translate-y-1 hover:border-slate-700 hover:shadow-blue-500/10">
-                        <Quote className="absolute right-6 top-6 h-8 w-8 text-slate-800" />
-                        <div className="flex gap-1 mb-4">
-                            {[...Array(review.rating)].map((_, i) => (
-                                <Star key={i} className="h-5 w-5 fill-yellow-500 text-yellow-500" />
-                            ))}
-                        </div>
-                        <p className="mb-6 text-gray-300">"{review.content}"</p>
-                        <div className="flex items-center gap-4">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-purple-600 font-bold text-white shadow-inner">
-                                {review.name.charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                                <h4 className="font-semibold text-white">{review.name}</h4>
-                                <span className="text-xs text-gray-500">Verified Buyer • {review.date}</span>
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-      </section>
+      {/* MODAL: COMO FUNCIONA A ENTREGA MANUAL */}
+      {showHowItWorks && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="w-full max-w-lg rounded-3xl border border-purple-500/40 bg-[#0d1029] p-6 shadow-2xl relative">
+            <button
+              onClick={() => setShowHowItWorks(false)}
+              className="absolute right-4 top-4 rounded-full p-2 text-gray-400 hover:bg-white/10 hover:text-white"
+            >
+              <X className="h-5 w-5" />
+            </button>
 
-      {/* Features / Trust Section */}
-      <section className="border-t border-slate-800 bg-slate-900 py-16">
-        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 sm:grid-cols-3 sm:px-6 lg:px-8">
-            <div className="flex flex-col items-center text-center">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-500">
-                    <Rocket className="h-6 w-6" />
-                </div>
-                <h3 className="mb-2 text-lg font-bold text-white">Instant Delivery</h3>
-                <p className="text-sm text-gray-400">Receive your gamepasses, items, and Robux seconds after payment confirmation.</p>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-purple-600/20 text-purple-400 border border-purple-500/30">
+                <HelpCircle className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Como Funciona a Entrega Manual?</h3>
+                <p className="text-xs text-gray-400">Acompanhe a compra e combine a entrega com o suporte.</p>
+              </div>
             </div>
-            <div className="flex flex-col items-center text-center">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-purple-500/10 text-purple-500">
-                    <Shield className="h-6 w-6" />
+
+            <div className="space-y-4 text-xs text-gray-300">
+              <div className="flex items-start gap-3 rounded-2xl border border-purple-950 bg-[#121638] p-3.5">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-purple-600 font-bold text-white text-[11px]">1</span>
+                <div>
+                  <strong className="text-white block mb-0.5">Escolha seu item ou pet</strong>
+                  Selecione o produto desejado e informe seu usuário do Roblox no checkout.
                 </div>
-                <h3 className="mb-2 text-lg font-bold text-white">100% Secure</h3>
-                <p className="text-sm text-gray-400">Protected transactions. We prioritize your account safety and total privacy.</p>
-            </div>
-            <div className="flex flex-col items-center text-center">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-green-500/10 text-green-500">
-                    <Terminal className="h-6 w-6" />
+              </div>
+
+              <div className="flex items-start gap-3 rounded-2xl border border-purple-950 bg-[#121638] p-3.5">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-purple-600 font-bold text-white text-[11px]">2</span>
+                <div>
+                  <strong className="text-white block mb-0.5">Envie o comprovante</strong>
+                  Pague com Pix ou cripto e envie o comprovante para análise da equipe.
                 </div>
-                <h3 className="mb-2 text-lg font-bold text-white">Complete Catalog</h3>
-                <p className="text-sm text-gray-400">Gamepasses, rare items, Robux, and more for the biggest Roblox games.</p>
+              </div>
+
+              <div className="flex items-start gap-3 rounded-2xl border border-purple-950 bg-[#121638] p-3.5">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-purple-600 font-bold text-white text-[11px]">3</span>
+                <div>
+                  <strong className="text-white block mb-0.5">Trade no Jogo</strong>
+                  Nosso atendente entra no seu servidor de Roblox e entrega os itens diretamente para a sua conta via Trade.
+                </div>
+              </div>
             </div>
+
+            <button
+              onClick={() => setShowHowItWorks(false)}
+              className="mt-6 w-full rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 py-3 text-xs font-bold text-white shadow-lg shadow-purple-600/30 hover:brightness-110"
+            >
+              Entendido, vamos comprar!
+            </button>
+          </div>
         </div>
-      </section>
+      )}
+
     </div>
   );
 };

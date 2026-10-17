@@ -1,6 +1,6 @@
 import type { CartItem, Product, ProductVariant } from '../types';
 
-export const PRODUCT_SELECT = 'id,title,description,price,image,category,stock,featured,variants:product_variants(id,name,price,image,category,stock)';
+export const PRODUCT_SELECT = 'id,title,description,price,image,category,stock,featured,game_name,short_description,original_price,delivery_mode,is_draft,variants:product_variants(id,name,price,image,category,stock)';
 
 export function normalizeProduct(product: Product): Product {
   const variants = (product.variants ?? []).map(v => ({
@@ -9,7 +9,12 @@ export function normalizeProduct(product: Product): Product {
   }));
   const normalized = {
     ...product, title: product.title.trim(), description: product.description.trim(),
-    category: product.category.trim().toLowerCase(), image: product.image.trim(),
+    category: product.category.trim(), image: product.image.trim(),
+    game_name: product.game_name?.trim() || null,
+    short_description: product.short_description?.trim() || null,
+    original_price: product.original_price ?? null,
+    delivery_mode: product.delivery_mode || 'manual',
+    is_draft: product.is_draft ?? false,
     featured: product.featured ?? false, variants,
     price: variants.length ? Math.min(...variants.map(v => v.price)) : product.price,
   };
@@ -17,6 +22,9 @@ export function normalizeProduct(product: Product): Product {
     throw new Error('Preencha título, descrição e categoria.');
   }
   if (!Number.isFinite(normalized.price) || normalized.price < 0) throw new Error('Informe um preço válido, maior ou igual a zero.');
+  if (normalized.original_price != null && (!Number.isFinite(normalized.original_price) || normalized.original_price < 0)) {
+    throw new Error('Informe um preço original válido.');
+  }
   if (!Number.isSafeInteger(normalized.stock) || normalized.stock < 0) throw new Error('O estoque deve ser um número inteiro maior ou igual a zero.');
   const ids = new Set<string>();
   for (const v of variants) {

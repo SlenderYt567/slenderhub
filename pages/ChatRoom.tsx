@@ -6,7 +6,7 @@ import { Send, User, ShieldAlert, Lock, ArrowLeft, Clock, CheckCircle } from 'lu
 const ChatRoom: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { chats, messages, sendMessage, closeChat, verifyPayment, isAuthenticated, isAdmin, user } = useStore();
+  const { chats, messages, sendMessage, closeChat, verifyPayment, isAuthenticated, authReady, isAdmin, user } = useStore();
   const [inputText, setInputText] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -20,11 +20,14 @@ const ChatRoom: React.FC = () => {
     }
   }, [chatMessages]);
 
+  if (!authReady) return <div className="min-h-[60vh] grid place-items-center text-purple-200">Carregando pedido…</div>;
+
   if (!chatSession) {
     return (
         <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center">
-            <h2 className="text-2xl font-bold text-white">Chat Session Not Found</h2>
-            <button onClick={() => navigate('/')} className="text-blue-500 hover:underline">Return Home</button>
+            <h2 className="text-2xl font-bold text-white">Pedido não encontrado nesta conta</h2>
+            <p className="max-w-md text-sm text-gray-400">Se este é um pedido antigo, fale com o suporte para localizar o atendimento.</p>
+            <button onClick={() => navigate('/contact')} className="text-purple-400 hover:underline">Falar com o suporte</button>
         </div>
     );
   }
@@ -86,9 +89,9 @@ const ChatRoom: React.FC = () => {
                 </div>
             </div>
         </div>
-        
+
         {role === 'admin' && chatSession.status !== 'closed' && (
-            <button 
+            <button
                 onClick={handleCloseTicket}
                 className="flex items-center gap-2 rounded-lg bg-red-500/10 px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-500 hover:text-white transition"
             >
@@ -114,7 +117,7 @@ const ChatRoom: React.FC = () => {
                       <p className="text-xs text-gray-400">Total: ${chatSession.totalAmount?.toFixed(2)}</p>
                   </div>
                   {role === 'admin' && (
-                      <button 
+                      <button
                         onClick={handleApprovePayment}
                         className="rounded-lg bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-500"
                       >
@@ -138,8 +141,8 @@ const ChatRoom: React.FC = () => {
             return (
                 <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                        isMe 
-                        ? 'bg-blue-600 text-white rounded-br-none' 
+                        isMe
+                        ? 'bg-blue-600 text-white rounded-br-none'
                         : 'bg-slate-800 text-gray-200 rounded-bl-none'
                     }`}>
                         <div className="text-sm">{msg.text}</div>
@@ -171,7 +174,7 @@ const ChatRoom: React.FC = () => {
                 placeholder={chatSession.status === 'open' || chatSession.status === 'pending_payment' ? "Type your message..." : "Chat is closed"}
                 className="flex-1 rounded-xl border border-slate-700 bg-slate-950 py-3 pl-4 pr-12 text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
-            <button 
+            <button
                 type="submit"
                 disabled={chatSession.status === 'closed' || !inputText.trim()}
                 className="absolute right-2 rounded-lg bg-blue-600 p-2 text-white transition hover:bg-blue-500 disabled:bg-slate-700 disabled:text-gray-500"

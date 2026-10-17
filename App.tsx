@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Cart from './pages/Cart';
@@ -11,64 +11,76 @@ import ProductDetails from './pages/ProductDetails';
 import Checkout from './pages/Checkout';
 import ChatRoom from './pages/ChatRoom';
 import Contact from './pages/Contact';
-import DeveloperPanel from './pages/DeveloperPanel';
 import Documentation from './pages/Documentation';
-import Maintenance from './pages/Maintenance';
-import UnlockKey from './pages/UnlockKey';
-import GatewayVerify from './pages/GatewayVerify';
-import Pricing from './pages/Pricing';
-import ScriptManager from './pages/ScriptManager';
-import ClaimKey from './pages/ClaimKey';
 import Scripts from './pages/Scripts';
 import Disabled from './pages/Disabled';
 import { StoreProvider } from './store';
 
-const PAYPAL_CLIENT_ID = '';
+const AppLayout: React.FC = () => {
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith('/admin') || location.pathname.startsWith('/edit');
+
+  return (
+    <div className="flex min-h-screen flex-col bg-[#070914] text-white selection:bg-purple-600/30 selection:text-purple-200">
+      {!isAdminRoute && <Navbar />}
+
+      <div className="flex-1">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/admin" element={<Admin />} />
+          <Route path="/admin-dashboard" element={<AdminDashboard />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/edit/:id" element={<EditProduct />} />
+          <Route path="/product/:id" element={<ProductDetails />} />
+          <Route path="/checkout" element={<Checkout />} />
+          <Route path="/chat/:id" element={<ChatRoom />} />
+          <Route path="/contact" element={<Contact />} />
+
+          <Route path="/developer-panel" element={<Disabled title="Painel indisponível" message="O sistema foi unificado para a loja de Itens e Gamepasses Roblox." />} />
+          <Route path="/documentation" element={<Documentation />} />
+          <Route path="/scripts" element={<Scripts />} />
+
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </div>
+
+      {!isAdminRoute && (
+        <footer className="border-t border-purple-950/60 bg-[#060816] py-10 text-center text-xs text-gray-400">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-4">
+            <div className="flex items-center justify-center gap-2">
+              <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center font-bold text-white text-[11px]">
+                S
+              </div>
+              <span className="font-extrabold text-sm tracking-wider text-white">
+                SLENDER<span className="text-purple-400">HUB</span>
+              </span>
+            </div>
+
+            <p className="text-gray-400 max-w-md mx-auto">
+              Encontre itens e gamepasses Roblox, acompanhe seu pedido e fale com nossa equipe de suporte.
+            </p>
+
+            <div className="flex justify-center gap-6 text-gray-400 pt-2 font-medium">
+              <a href="/contact" className="hover:text-purple-400 transition">Central de Suporte</a>
+            </div>
+
+            <p className="text-[11px] text-gray-400 pt-4 border-t border-purple-950/40">
+              &copy; {new Date().getFullYear()} Slender Hub. Todos os direitos reservados. Não afiliado à Roblox Corporation.
+            </p>
+          </div>
+        </footer>
+      )}
+    </div>
+  );
+};
 
 function App() {
   return (
     <StoreProvider>
       <Router>
-        <div className="flex min-h-screen flex-col bg-slate-950 text-white selection:bg-blue-500/30 selection:text-blue-200">
-          <Navbar />
-          <div className="flex-1">
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/cart" element={<Cart />} />
-              <Route path="/admin" element={<Admin />} />
-              <Route path="/admin-dashboard" element={<AdminDashboard />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/edit/:id" element={<EditProduct />} />
-              <Route path="/product/:id" element={<ProductDetails />} />
-              <Route path="/checkout" element={<Checkout />} />
-              <Route path="/chat/:id" element={<ChatRoom />} />
-              <Route path="/contact" element={<Contact />} />
-              
-              {/* Páginas do Sistema de Chaves/Script (DESATIVADAS - Loja agora vende Gamepasses, Itens e Robux) */}
-              <Route path="/developer-panel" element={<Disabled title="Painel de Desenvolvedor indisponível" message="O sistema de chaves/scripts foi descontinuado. A loja agora vende Gamepasses, Itens e Robux oficiais do Roblox." />} />
-              <Route path="/script-manager" element={<Disabled title="Gerenciador de Scripts indisponível" message="O sistema de scripts foi descontinuado. A loja agora vende Gamepasses, Itens e Robux oficiais do Roblox." />} />
-              <Route path="/documentation" element={<Documentation />} />
-              <Route path="/unlock/:key" element={<Disabled title="Sistema de Chaves descontinuado" message="Não trabalhamos mais com chaves de script. Compre Gamepasses, Itens e Robux na nossa <a href='/' className='text-blue-400 underline'>loja principal</a>." />} />
-              <Route path="/claim" element={<Disabled title="Sistema de Claims descontinuado" message="Não trabalhamos mais com chaves de script. Compre Gamepasses, Itens e Robux na nossa <a href='/' className='text-blue-400 underline'>loja principal</a>." />} />
-              <Route path="/verify-gateway" element={<Disabled title="Gateway descontinuado" message="O sistema de gateway para chaves foi descontinuado. Compre Gamepasses, Itens e Robux na nossa <a href='/' className='text-blue-400 underline'>loja principal</a>." />} />
-              <Route path="/pricing" element={<Disabled title="Planos indisponíveis" message="Não oferecemos mais planos de scripts. Compre Gamepasses, Itens e Robux na nossa <a href='/' className='text-blue-400 underline'>loja principal</a>." />} />
-              <Route path="/scripts" element={<Scripts />} />
-              
-              {/* Fallback */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </div>
-          <footer className="border-t border-slate-900 bg-[#020617] py-8 text-center text-sm text-gray-600">
-            <div className="mx-auto max-w-7xl px-4">
-              <p>&copy; {new Date().getFullYear()} Slender Hub. All rights reserved.</p>
-              <p className="mt-2 text-xs">Not affiliated with Roblox Corporation.</p>
-              <div className="mt-4 flex justify-center gap-4">
-                <a href="#" className="hover:text-blue-500">Terms of Service</a>
-                <a href="#" className="hover:text-blue-500">Privacy Policy</a>
-              </div>
-            </div>
-          </footer>
-        </div>
+        <AppLayout />
       </Router>
     </StoreProvider>
   );

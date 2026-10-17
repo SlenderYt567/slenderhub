@@ -32,7 +32,12 @@ interface StoreContextType {
   // Chat capabilities
   chats: ChatSession[];
   messages: ChatMessage[];
-  createChat: (customerName: string, proofImage: string, total: number) => Promise<string>;
+  createChat: (customerName: string, proofImage: string, total: number, details: {
+    contactEmail: string;
+    robloxUsername: string;
+    paymentMethod: string;
+    items: { productId: string; title: string; variant?: string; quantity: number; unitPrice: number; image: string }[];
+  }) => Promise<string>;
   sendMessage: (chatId: string, text: string, sender: 'user' | 'admin') => Promise<void>;
   closeChat: (chatId: string) => Promise<void>;
   verifyPayment: (chatId: string) => Promise<void>;
@@ -166,54 +171,36 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     // Legacy profile refresh logic removed
   };
 
-  // Só carrega chats quando um admin está autenticado (páginas de admin/chat).
-  // Visitantes públicos NÃO disparam 2 round-trips desnecessários ao Supabase.
+  // Cada cliente carrega apenas os próprios pedidos; admins carregam todos.
   useEffect(() => {
-    if (user && isAdmin) {
-      fetchChats();
-    }
+    if (user) void fetchChats();
   }, [user, isAdmin]);
 
+  useEffect(() => {
+    if (authReady && isAdmin) void fetchProducts(true);
+  }, [authReady, isAdmin]);
+
   // Busca um produto completo (COM imagem) on-demand para a página de detalhes
-  const getProductDetail = useCallback((id: string) => fetchProduct(supabase, id), []);
+  const getProductDetail = useCallback(async (id: string) => {
+    return fetchProduct(supabase, id);
+  }, []);
 
   const fetchProducts = async (force = false) => {
     const revision = catalogRevision.current;
-    // Cache em sessionStorage: produtos aparecem instantaneamente no reload
-    if (!force) {
-      try {
-        const cached = sessionStorage.getItem(PRODUCTS_CACHE_KEY);
-        if (cached) {
-          const { data, ts } = JSON.parse(cached);
-          if (Array.isArray(data) && Date.now() - ts < PRODUCTS_CACHE_TTL) {
-            setProducts(data as Product[]);
-            // Revalidate even when cached: prices and stock may have changed.
-          }
-        }
-      } catch { /* cache inválido — ignora */ }
-    }
-
     setLoading(true);
     setProductsError('');
     try {
-      // Listagem busca a coluna image para exibir as fotos dos produtos
-      // nos cards (Home). Se o payload ficar pesado, reavaliar com storage.
-      const { data, error } = await supabase
-        .from('products')
-        .select(PRODUCT_SELECT)
-        .order('created_at', { ascending: false });
+      const query = supabase.from('products').select(PRODUCT_SELECT).order('created_at', { ascending: false });
+      const { data, error } = await (isAdmin ? query : query.eq('is_draft', false));
 
       if (error) throw error;
-      if (data && revision === catalogRevision.current) {
-        setProducts(data as Product[]);
-        commitCart(reconcileCart(cartRef.current, data as Product[]));
-        try {
-          sessionStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify({ data, ts: Date.now() }));
-        } catch { /* storage cheio — ignora */ }
+      if (revision === catalogRevision.current) {
+        setProducts((data || []) as Product[]);
+        commitCart(reconcileCart(cartRef.current, (data || []) as Product[]));
       }
     } catch (e) {
-      console.error("Critical fetch error", e);
-      setProductsError('Não foi possível atualizar o catálogo. Tente novamente.');
+      console.error('Falha ao carregar catálogo:', e);
+      setProductsError('Não foi possível carregar o catálogo. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -362,7 +349,13 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   // Chat Functions
-  const createChat = async (customerName: string, proofImage: string, total: number): Promise<string> => {
+  const createChat = async (customerName: string, proofImage: string, total: number, details: {
+    contactEmail: string;
+    robloxUsername: string;
+    paymentMethod: string;
+    items: { productId: string; title: string; variant?: string; quantity: number; unitPrice: number; image: string }[];
+  }): Promise<string> => {
+    if (!user) throw new Error('Entre na sua conta antes de concluir o pedido.');
     const newChatId = Date.now().toString();
     const now = Date.now();
 
@@ -384,7 +377,12 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       payment_status: newChat.paymentStatus,
       proof_image: newChat.proofImage,
       total_amount: newChat.totalAmount,
-      last_message_at: newChat.lastMessageAt
+      last_message_at: newChat.lastMessageAt,
+      contact_email: details.contactEmail,
+      roblox_username: details.robloxUsername,
+      payment_method: details.paymentMethod,
+      cart_items: details.items,
+      owner_id: user.id,
     });
 
     if (error) {
@@ -398,8 +396,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const welcomeMsg: ChatMessage = {
       id: Date.now().toString(),
       chatId: newChatId,
-      sender: 'admin',
-      text: `Thank you for your payment proof! An admin will verify it shortly and release your products.`,
+      sender: 'user',
+      text: 'Comprovante enviado. Aguardando análise da equipe.',
       timestamp: now,
     };
 
@@ -435,8 +433,6 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     });
 
     // Update session timestamp
-    await supabase.from('chat_sessions').update({ last_message_at: now }).eq('id', chatId);
-
     setMessages(prev => [...prev, msg]);
     setChats(prev => prev.map(c =>
       c.id === chatId ? { ...c, lastMessageAt: now } : c
@@ -444,10 +440,12 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   const verifyPayment = async (chatId: string) => {
-    await supabase.from('chat_sessions').update({
+    const { data, error } = await supabase.from('chat_sessions').update({
       status: 'open',
-      payment_status: 'verified'
-    }).eq('id', chatId);
+      payment_status: 'verified',
+      verified_at: new Date().toISOString(),
+    }).eq('id', chatId).select('id').single();
+    if (error || !data) throw error || new Error('O banco não confirmou o pagamento.');
 
     setChats(prev => prev.map(c =>
       c.id === chatId ? { ...c, status: 'open', paymentStatus: 'verified' } : c
