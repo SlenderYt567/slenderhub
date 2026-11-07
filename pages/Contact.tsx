@@ -84,12 +84,12 @@ const Contact: React.FC = () => {
               </div>
               <h3 className="text-xl font-black text-white">Suporte por e-mail</h3>
               <p className="mt-2 text-xs text-gray-400 leading-relaxed">
-                contato@slenderhub.shop
+                slenderyt9@gmail.com
               </p>
             </div>
 
             <a
-              href="mailto:contato@slenderhub.shop"
+              href="mailto:slenderyt9@gmail.com"
               className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-purple-800/60 bg-[#12163b] py-3 text-xs font-bold text-purple-200 transition hover:bg-purple-600 hover:text-white"
             >
               Enviar Email

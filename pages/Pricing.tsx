@@ -226,7 +226,7 @@ const Pricing: React.FC = () => {
           <Shield className="w-8 h-8 text-blue-400 mx-auto mb-3" />
           <h3 className="text-lg font-bold mb-2">How does activation work?</h3>
           <p className="text-sm text-gray-400 leading-relaxed max-w-xl mx-auto">
-            After payment, join the SlenderHub Discord and send your proof. Your plan is manually activated within <strong className="text-white">24 hours</strong>.
+            After payment, join the ZW Store Discord and send your proof. Your plan is manually activated within <strong className="text-white">24 hours</strong>.
           </p>
           <div className="flex justify-center gap-4 mt-4">
             <a

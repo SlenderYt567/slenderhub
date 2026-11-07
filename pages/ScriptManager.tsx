@@ -349,7 +349,7 @@ const ScriptManager: React.FC = () => {
                   value={newScript.name}
                   onChange={(e) => setNewScript({ ...newScript, name: e.target.value })}
                   className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Ex: SlenderHub Universal V12"
+                  placeholder="Ex: ZW Store Universal V12"
                 />
               </div>
               <div>

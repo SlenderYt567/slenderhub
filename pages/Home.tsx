@@ -313,7 +313,7 @@ const Home: React.FC = () => {
         {loading && products.length === 0 ? (
           <div className="py-20 text-center">
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-purple-500 border-t-transparent" />
-            <p className="mt-4 text-sm font-semibold text-gray-400">Carregando catálogo Slender Hub…</p>
+            <p className="mt-4 text-sm font-semibold text-gray-400">Carregando catálogo ZW Store…</p>
           </div>
         ) : filteredProducts.length > 0 ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">

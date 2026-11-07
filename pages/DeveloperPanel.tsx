@@ -388,7 +388,7 @@ const DeveloperPanel: React.FC = () => {
   const luaSnippet = useMemo(() => {
     const scriptIdParam = luaSelectedScript || 'GLOBAL';
     return `-- =====================================================
---  SLENDER HUB — Secure Loader v2
+--  ZW STORE — Secure Loader v2
 --  Auto-generated for developer: ${user?.id || 'unknown'}
 --  DO NOT MODIFY THIS SECTION
 -- =====================================================
@@ -434,7 +434,7 @@ local function loadProtectedScript(licenseKey)
         local ok, response = safeRequest(url)
         if ok and response then
             if response:sub(1, 6) == "warn(\"" then
-                warn("[SlenderHub] " .. response)
+                warn("[ZW Store] " .. response)
                 return false
             end
             
@@ -443,21 +443,21 @@ local function loadProtectedScript(licenseKey)
             end)
             
             if loadOk then
-                print("[SlenderHub] ✔ Script loaded successfully")
+                print("[ZW Store] ✔ Script loaded successfully")
                 return true
             else
-                warn("[SlenderHub] Script error: " .. tostring(loadErr))
+                warn("[ZW Store] Script error: " .. tostring(loadErr))
                 return false
             end
         end
         
         if attempt < CONFIG.MAX_RETRIES then
-            warn("[SlenderHub] Connection failed, retrying in " .. CONFIG.RETRY_DELAY .. "s...")
+            warn("[ZW Store] Connection failed, retrying in " .. CONFIG.RETRY_DELAY .. "s...")
             task.wait(CONFIG.RETRY_DELAY)
         end
     end
     
-    warn("[SlenderHub] Failed to load script after " .. CONFIG.MAX_RETRIES .. " attempts")
+    warn("[ZW Store] Failed to load script after " .. CONFIG.MAX_RETRIES .. " attempts")
     return false
 end
 
@@ -479,7 +479,7 @@ if not loadProtectedScript(licenseKey) then
     end
     
     warn("====================================")
-    warn("  SLENDER HUB — ACCESS DENIED")
+    warn("  ZW STORE — ACCESS DENIED")
     warn("  Get a valid key at:")
     warn("  ${baseUrl}/#/claim")
     warn("====================================")
@@ -487,7 +487,7 @@ if not loadProtectedScript(licenseKey) then
     task.wait(3)
     local player = game:GetService("Players").LocalPlayer
     if player then
-        player:Kick("SlenderHub: Invalid or expired key. Get a new key at " .. "${baseUrl}/#/claim")
+        player:Kick("ZW Store: Invalid or expired key. Get a new key at " .. "${baseUrl}/#/claim")
     end
 end`;
   }, [baseUrl, luaSelectedScript, user]);

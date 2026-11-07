@@ -45,7 +45,7 @@ export function generateKeyDeliveryEmailHtml(params: {
 }): string {
     const { customerName, orderId, productTitle, keyContent, isUrl } = params;
     const discordUrl = 'https://discord.gg/2B8TQ7A3MV';
-    const actionUrl = isUrl ? keyContent : `https://slenderhub.shop/claim?key=${encodeURIComponent(keyContent)}`;
+    const actionUrl = isUrl ? keyContent : `https://www.zwhub.store/claim?key=${encodeURIComponent(keyContent)}`;
     const actionText = isUrl ? '⚡ Acessar Link de Resgate' : '🔑 Copiar Key / Ativar';
 
     // Sanitizar valores fornecidos pelo usuário para evitar injeção HTML no template
@@ -60,7 +60,7 @@ export function generateKeyDeliveryEmailHtml(params: {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sua Key / Licença Slender Hub</title>
+  <title>Sua Key / Licença ZW Store</title>
   <style>
     body {
       margin: 0;
@@ -202,14 +202,14 @@ export function generateKeyDeliveryEmailHtml(params: {
     <div class="container">
       <!-- Header -->
       <div class="header">
-        <h1>Slender Hub</h1>
+        <h1>ZW Store</h1>
         <p>Confirmação de Pedido & Entrega Digital</p>
       </div>
 
       <!-- Body -->
       <div class="body-content">
         <div class="greeting">
-          Olá, <strong>${safeCustomerName}</strong>! Obrigado por comprar no <strong>Slender Hub</strong>.
+          Olá, <strong>${safeCustomerName}</strong>! Obrigado por comprar na <strong>ZW Store</strong>.
         </div>
 
         <div class="product-badge">
@@ -248,10 +248,10 @@ export function generateKeyDeliveryEmailHtml(params: {
       <div class="footer">
         <p style="margin: 0 0 10px 0;">Dúvidas ou problemas com seu produto?</p>
         <p style="margin: 0;">
-          <a href="${discordUrl}" target="_blank">💬 Entrar no Suporte Discord (Slender Hub)</a>
+          <a href="${discordUrl}" target="_blank">💬 Entrar no Suporte Discord (ZW Store)</a>
         </p>
         <p style="margin: 16px 0 0 0; font-size: 11px; color: #475569;">
-          © ${new Date().getFullYear()} Slender Hub. Todos os direitos reservados.
+          © ${new Date().getFullYear()} ZW Store. Todos os direitos reservados.
         </p>
       </div>
     </div>
@@ -290,9 +290,9 @@ export async function sendDigitalDeliveryEmail(params: {
     }
 
     const mailOptions = {
-        from: `"Slender Hub" <${smtpUser}>`,
+        from: `"ZW Store" <${smtpUser}>`,
         to: params.toEmail,
-        subject: `[Slender Hub] Sua Key de Licença - ${params.productTitle}`,
+        subject: `[ZW Store] Sua Key de Licença - ${params.productTitle}`,
         html: htmlContent
     };
 
@@ -328,7 +328,7 @@ export default async function handler(req: any, res: any) {
             const adminMailOptions = {
                 from: smtpUser,
                 to: adminEmail,
-                subject: `[SlenderHub] Nova Compra via ${method.toUpperCase()}!`,
+                subject: `[ZW Store] Nova Compra via ${method.toUpperCase()}!`,
                 text: `Olá Admin!\n\nUma nova compra acabou de ser iniciada.\n\nDetalhes:\nComprador: ${customerName}\nE-mail de Contato: ${contactEmail}\nValor Total: $${totalValue}\nMétodo: ${method}\n\nItens Comprados:\n${itemsList}\n\nEntre no dashboard ou confira o chat para validar o pagamento e liberar o pedido.`
             };
             await transporter.sendMail(adminMailOptions);
@@ -339,8 +339,8 @@ export default async function handler(req: any, res: any) {
         const customerMailOptions = {
             from: smtpUser,
             to: contactEmail,
-            subject: `SlenderHub - Status do seu pedido`,
-            text: `Olá ${customerName},\n\nObrigado pela sua compra!\n\nEnviaremos sua chave ou item em breve. Fique atento ao seu email ou se preferir nos contate no discord:\nhttps://discord.gg/2B8TQ7A3MV\n\nResumo do Pedido:\n${itemsList}\nTotal: $${totalValue}\n\nAtenciosamente,\nEquipe SlenderHub`
+            subject: `ZW Store - Status do seu pedido`,
+            text: `Olá ${customerName},\n\nObrigado pela sua compra!\n\nEnviaremos sua chave ou item em breve. Fique atento ao seu email ou se preferir nos contate no discord:\nhttps://discord.gg/2B8TQ7A3MV\n\nResumo do Pedido:\n${itemsList}\nTotal: $${totalValue}\n\nAtenciosamente,\nEquipe ZW Store`
         };
 
         await transporter.sendMail(customerMailOptions);

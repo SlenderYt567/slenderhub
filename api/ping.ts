@@ -8,7 +8,7 @@ export const config = {
 export default async function handler(req: any, res: any) {
     return res.status(200).json({
         success: true,
-        message: 'SlenderHub API is Online',
+        message: 'ZW Store API is Online',
         timestamp: Date.now()
     });
 }

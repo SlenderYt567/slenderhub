@@ -117,7 +117,7 @@ const Documentation: React.FC = () => {
                   <h3 className="font-bold text-purple-100">Before You Start</h3>
                   <p className="text-sm text-purple-300 mt-1">
                     Have your <strong>Roblox username</strong> ready (not your password!). For Robux, you\'ll need to join the
-                    official Slender Hub group on Roblox to receive the transfer.
+                    official ZW Store group on Roblox to receive the transfer.
                   </p>
                 </div>
               </div>
@@ -208,7 +208,7 @@ const Documentation: React.FC = () => {
                       <p className="text-xs text-gray-400">Response within 5 minutes</p>
                     </div>
                   </Link>
-                  <a href="https://discord.gg/slenderhub" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/50 p-4 hover:border-purple-500/50 transition-colors">
+                  <a href="https://discord.gg/2B8TQ7A3MV" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/50 p-4 hover:border-purple-500/50 transition-colors">
                     <ExternalLink className="h-6 w-6 text-purple-400" />
                     <div>
                       <h4 className="font-bold text-white">Discord</h4>

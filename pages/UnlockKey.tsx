@@ -311,7 +311,7 @@ const UnlockKey: React.FC = () => {
                 </div>
 
                 <div className="p-4 bg-slate-950/50 text-center text-xs text-slate-500 border-t border-slate-800">
-                    Powered by SlenderHub Key System
+                    Powered by ZW Store Key System
                 </div>
             </div>
         </div>

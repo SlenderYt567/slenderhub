@@ -17,7 +17,7 @@ const Maintenance: React.FC = () => {
         </h1>
         
         <p className="text-xl text-gray-400 max-w-2xl mb-12 leading-relaxed">
-          Estamos aprimorando o SlenderHub para trazer o melhor sistema de licenciamento do mercado. 
+          Estamos aprimorando a ZW Store para trazer o melhor sistema de licenciamento do mercado.
           O site voltará em breve com todas as funcionalidades restauradas.
         </p>
 
@@ -44,7 +44,7 @@ const Maintenance: React.FC = () => {
         </div>
 
         <div className="mt-16 text-xs text-gray-600 uppercase tracking-[0.2em]">
-          &copy; {new Date().getFullYear()} Slender Hub System
+          &copy; {new Date().getFullYear()} ZW Store System
         </div>
       </div>
     </div>

@@ -42,11 +42,11 @@ export default async function handler(req: any, res: any) {
     const scriptId = req.query?.script_id || req.query?.scriptId || '';
 
     if (!key || !hwid) {
-        return sendLua('warn("SlenderHub: Key and HWID are required.");');
+        return sendLua('warn("ZW Store: Key and HWID are required.");');
     }
 
     if (!scriptId) {
-        return sendLua('warn("SlenderHub: script_id is required.");');
+        return sendLua('warn("ZW Store: script_id is required.");');
     }
 
     try {
@@ -56,7 +56,7 @@ export default async function handler(req: any, res: any) {
 
         // Hash of key
         const { data: hashData } = await supabase.rpc('hash_license_key', { p_key_string: key });
-        if (!hashData) return sendLua('warn("SlenderHub: Encryption error");');
+        if (!hashData) return sendLua('warn("ZW Store: Encryption error");');
         const keyHash = hashData;
 
         // Validate and retrieve script
@@ -76,9 +76,9 @@ export default async function handler(req: any, res: any) {
         if (error || !data?.success) {
             const errMsg = escapeLuaComment(data?.error || error?.message || 'Verification failed');
             return sendLua(`
-warn("SlenderHub: ${errMsg}")
+warn("ZW Store: ${errMsg}")
 local p = game:GetService("Players").LocalPlayer
-if p then p:Kick("SlenderHub: ${errMsg}") end
+if p then p:Kick("ZW Store: ${errMsg}") end
 `);
         }
 
@@ -94,7 +94,7 @@ if p then p:Kick("SlenderHub: ${errMsg}") end
         const checksum = sanitizeLuaString(data.script_checksum || '');
 
         const scriptHeader = `
--- [SlenderHub Protected Environment v2]
+-- [ZW Store Protected Environment v2]
 -- !! NÃO EDITE ESTA SEÇÃO — ela é verificada pelo servidor !!
 do
     local env = getgenv()
@@ -134,6 +134,6 @@ end
 
     } catch (err: any) {
         console.error('[Loader] Error:', err);
-        return sendLua('warn("SlenderHub: Internal server error. Please try again.");');
+        return sendLua('warn("ZW Store: Internal server error. Please try again.");');
     }
 }

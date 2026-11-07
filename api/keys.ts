@@ -1,5 +1,5 @@
 // =============================================================
-// SLENDER HUB — ROUTER ÚNICO DO SISTEMA DE KEYS
+// ZW STORE — ROUTER ÚNICO DO SISTEMA DE KEYS
 // -------------------------------------------------------------
 // Consolida 6 endpoints (/api/keys/verify, generate, reset-hwid,
 // verify-logs, claim, claim-config) em UMA Serverless Function.
@@ -91,12 +91,12 @@ function envError(res: any, tag: string) {
 
 // GET /api/keys/verify?key=..&hwid=..&script_id=..
 async function handleVerify(req: any, res: any) {
-    const allowedOrigins = ['https://slenderhub.shop', 'http://localhost:3000', 'http://localhost:5173'];
+    const allowedOrigins = ['https://www.zwhub.store', 'https://zwhub.store', 'http://localhost:3000', 'http://localhost:5173'];
     const origin = req.headers?.origin || req.headers?.['x-forwarded-host'];
     if (origin && allowedOrigins.some((o) => origin.startsWith(o))) {
         res.setHeader('Access-Control-Allow-Origin', origin);
     } else if (!origin) {
-        res.setHeader('Access-Control-Allow-Origin', 'https://slenderhub.shop');
+        res.setHeader('Access-Control-Allow-Origin', 'https://www.zwhub.store');
     }
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');

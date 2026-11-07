@@ -279,10 +279,10 @@ const ProductForm: React.FC<ProductFormProps> = ({ mode }) => {
           <div className="h-16 flex items-center justify-between px-6 border-b border-purple-950/60">
             <Link to="/" className="flex items-center gap-2.5">
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-purple-600 to-indigo-600 font-black text-white text-base shadow-md">
-                S
+                ZW
               </div>
               <span className="font-extrabold text-base tracking-wider text-white">
-                SLENDER<span className="text-purple-400">HUB</span>
+                ZW <span className="text-purple-400">STORE</span>
               </span>
             </Link>
           </div>

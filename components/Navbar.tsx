@@ -42,12 +42,12 @@ const Navbar: React.FC = () => {
         <Link to="/" className="flex items-center gap-2.5 shrink-0 group">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-purple-600 via-indigo-600 to-cyan-500 p-0.5 shadow-lg shadow-purple-600/30 group-hover:scale-105 transition-transform duration-300">
             <div className="flex h-full w-full items-center justify-center rounded-[10px] bg-[#0c0f24] font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-cyan-400 text-lg">
-              S
+              ZW
             </div>
           </div>
           <div className="flex flex-col">
-            <span className="text-xl font-extrabold tracking-wider text-white flex items-center">
-              SLENDER<span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-400">HUB</span>
+            <span className="text-xl font-extrabold tracking-wider text-white flex items-center gap-1">
+              ZW <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-400">STORE</span>
             </span>
           </div>
         </Link>

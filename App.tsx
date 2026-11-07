@@ -51,10 +51,10 @@ const AppLayout: React.FC = () => {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-4">
             <div className="flex items-center justify-center gap-2">
               <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center font-bold text-white text-[11px]">
-                S
+                ZW
               </div>
               <span className="font-extrabold text-sm tracking-wider text-white">
-                SLENDER<span className="text-purple-400">HUB</span>
+                ZW <span className="text-purple-400">STORE</span>
               </span>
             </div>
 
@@ -67,7 +67,7 @@ const AppLayout: React.FC = () => {
             </div>
 
             <p className="text-[11px] text-gray-400 pt-4 border-t border-purple-950/40">
-              &copy; {new Date().getFullYear()} Slender Hub. Todos os direitos reservados. Não afiliado à Roblox Corporation.
+              &copy; {new Date().getFullYear()} ZW Store. Todos os direitos reservados. Não afiliado à Roblox Corporation.
             </p>
           </div>
         </footer>

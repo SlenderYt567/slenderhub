@@ -53,7 +53,7 @@ function obfuscateLua(source: string): string {
     });
     
     const payload = `
---[SlenderHub Obfuscated v1]
+--[ZW Store Obfuscated v1]
 local _S={${stringTable.slice(0, -1)}}
 local function _d(s)
     local hs = game:GetService("HttpService")

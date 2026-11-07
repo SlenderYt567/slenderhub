@@ -33,7 +33,7 @@ export default async function handler(req: any, res: any) {
         }
 
         const cleanOrderId = orderId || `ORD-${Date.now()}`;
-        const cleanProductTitle = productTitle || 'Produto Digital Slender Hub';
+        const cleanProductTitle = productTitle || 'Produto Digital ZW Store';
 
         let keyContent: string | null = null;
         let keyId: string | null = null;

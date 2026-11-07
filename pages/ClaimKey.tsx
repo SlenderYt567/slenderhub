@@ -432,7 +432,7 @@ const ClaimKey: React.FC = () => {
         </div>
 
         <div className="border-t border-slate-800 bg-slate-950/50 p-4 text-center text-xs text-slate-500">
-          Powered by SlenderHub Claim Flow
+          Powered by ZW Store Claim Flow
         </div>
       </div>
     </div>
