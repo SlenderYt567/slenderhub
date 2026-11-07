@@ -19,7 +19,7 @@ const pricing = await load('server/stripePricing.ts', 'stripe-pricing');
 const { recordPaidSession, STRIPE_SOURCE } = await load('server/stripe.ts', 'stripe-server');
 const { createCheckoutHandler } = await load('api/stripe-checkout.ts', 'stripe-checkout');
 const { createWebhookHandler, rawWebhookBody } = await load('api/webhooks/stripe.ts', 'stripe-webhook');
-const { default: legacy } = await load('api/stripe-intent.ts', 'stripe-legacy');
+const { default: legacy } = await load('server/stripeLegacy.ts', 'stripe-legacy');
 const product = { id: 'pet', title: 'Pet', price: 10, stock: 5, image: '', is_draft: false,
   variants: [{ id: 'gold', name: 'Gold', price: 2.55, stock: 3 }, { id: 'silver', name: 'Silver', price: 1.25, stock: 4 }] };
 function response() { return { code: 200, payload: null, setHeader() {}, status(code) { this.code = code; return this; }, json(body) { this.payload = body; return this; } }; }
@@ -118,8 +118,12 @@ test('signed completed/async-success events persist orders; bad signatures and f
   }
   await assert.rejects(rawWebhookBody({ body: { parsed: true } }));
 });
-test('legacy browser-priced payment endpoint is disabled', () => {
+test('legacy browser-priced payment endpoint is disabled, including its consolidated route', async () => {
   const res = response(); legacy(request, res); assert.equal(res.code, 410);
+  const handler = createCheckoutHandler(() => { throw new Error('Must not create a payment'); });
+  const routed = response();
+  await handler({ ...request, query: { retired: '1' } }, routed);
+  assert.equal(routed.code, 410);
 });
 
 test('Vercel raw stream is read without invoking its lazy JSON body getter', async () => {

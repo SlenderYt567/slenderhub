@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import legacyStripeHandler from '../server/stripeLegacy.js';
 import { PRODUCT_SELECT } from '../lib/products.js';
 import { CheckoutError, parseItems, priceItems } from '../server/stripePricing.js';
 import { authenticatedUser, handlePaymentError, paymentServices, siteOrigin, STRIPE_SOURCE } from '../server/stripe.js';
@@ -7,6 +8,7 @@ export const config = { runtime: 'nodejs' };
 export function createCheckoutHandler(services = paymentServices) {
   return async function handler(req: any, res: any) {
     res.setHeader('Cache-Control', 'no-store');
+    if (req.query?.retired === '1') return legacyStripeHandler(req, res);
     if (!['GET', 'POST'].includes(req.method)) return res.status(405).json({ error: 'Method Not Allowed' });
     try {
       const { stripe, db } = services();
