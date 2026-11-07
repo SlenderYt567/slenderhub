@@ -30,7 +30,7 @@ A política de inserção foi endurecida no projeto atual: clientes só podem cr
    - `checkout.session.async_payment_succeeded`
    - `checkout.session.async_payment_failed`
 
-   Use a versão de API do SDK instalado (Stripe Node 23.1.0: `2026-10-28.endive`). Copie o segredo desse destino para `STRIPE_WEBHOOK_SECRET`. A assinatura usa o corpo bruto da requisição; não use um middleware que o transforme em JSON antes da validação.
+   O destino atual usa `2026-09-30.endive`, versão suportada pela conexão Stripe. O servidor consulta a sessão atual pelo SDK antes de registrar o pedido. Copie o segredo desse destino para `STRIPE_WEBHOOK_SECRET`. A assinatura usa o corpo bruto da requisição; não use um middleware que o transforme em JSON antes da validação.
 6. Habilite os dois indicadores no ambiente de teste e publique novamente. `VITE_` é incorporado durante o build. Teste o fluxo abaixo antes de repetir a configuração com credenciais de produção.
 
 ## Testes antes da ativação
@@ -59,3 +59,13 @@ Referências: [Checkout](https://docs.stripe.com/payments/checkout), [webhooks](
 ## Alertas preexistentes do banco
 
 A checagem de segurança do Supabase não apontou novos alertas ligados a essa política, mas há alertas anteriores em funções de licenciamento (permissões de execução e `search_path`), na extensão `pg_net`, em `key_executions` sem políticas e na proteção contra senhas vazadas. Esses componentes não foram alterados nesta integração. Consulte [funções expostas](https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable), [search_path](https://supabase.com/docs/guides/database/database-linter?lint=0011_function_search_path_mutable) e [proteção de senhas](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
+
+## Estado da implantação — 7 de novembro de 2026
+
+- Código publicado na produção em `https://www.zwhub.store` após consolidar a rota antiga para respeitar o limite de 12 funções da Vercel.
+- Webhook de produção cadastrado em `/api/webhooks/stripe`, com os três eventos de checkout. Está desativado até concluir a validação.
+- `SITE_URL`, `STRIPE_SECRET_KEY` e `STRIPE_WEBHOOK_SECRET` configurados na Vercel; os dois segredos são variáveis sensíveis de produção. Nenhum valor de chave é registrado neste documento.
+- `STRIPE_ENABLED=false` e `VITE_STRIPE_ENABLED=false`: o checkout permanece oculto e sem criar cobranças.
+- Aguardando a conexão do sandbox escolhido pelo proprietário para o teste completo antes da ativação. Não usar a chave local de outro ambiente sem autorização.
+- Após validar: habilitar o webhook existente, mudar os dois indicadores para `true`, publicar novamente e verificar o checkout.
+- A chave fornecida durante a configuração deve ser substituída por uma chave restrita com os acessos necessários.
