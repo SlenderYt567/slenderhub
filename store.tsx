@@ -55,12 +55,28 @@ interface StoreContextType {
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
+const CART_STORAGE_KEY = 'zw_store_cart_v1';
+
+function loadCart(): CartItem[] {
+  try {
+    const value: unknown = JSON.parse(sessionStorage.getItem(CART_STORAGE_KEY) || '[]');
+    if (!Array.isArray(value)) return [];
+    return value.filter(item => item && typeof item.id === 'string' && typeof item.title === 'string'
+      && typeof item.price === 'number' && Number.isFinite(item.price) && Number.isSafeInteger(item.quantity)
+      && item.quantity > 0 && typeof item.stock === 'number'
+      && (!item.selectedVariant || typeof item.selectedVariant.id === 'string'));
+  } catch { return []; }
+}
 
 export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [products, setProducts] = useState<Product[]>([]);
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const cartRef = useRef<CartItem[]>([]);
-  const commitCart = (next: CartItem[]) => { cartRef.current = next; setCart(next); };
+  const [cart, setCart] = useState<CartItem[]>(loadCart);
+  const cartRef = useRef<CartItem[]>(cart);
+  const commitCart = (next: CartItem[]) => {
+    cartRef.current = next;
+    setCart(next);
+    try { sessionStorage.setItem(CART_STORAGE_KEY, JSON.stringify(next)); } catch { /* Storage can be unavailable. */ }
+  };
   const mutationRef = useRef(false);
   const catalogRevision = useRef(0);
   const [productsError, setProductsError] = useState('');
