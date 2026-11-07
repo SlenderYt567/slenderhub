@@ -9,6 +9,7 @@ import Login from './pages/Login';
 import EditProduct from './pages/EditProduct';
 import ProductDetails from './pages/ProductDetails';
 import Checkout from './pages/Checkout';
+import StripeReturn from './pages/StripeReturn';
 import ChatRoom from './pages/ChatRoom';
 import Contact from './pages/Contact';
 import Documentation from './pages/Documentation';
@@ -34,6 +35,7 @@ const AppLayout: React.FC = () => {
           <Route path="/edit/:id" element={<EditProduct />} />
           <Route path="/product/:id" element={<ProductDetails />} />
           <Route path="/checkout" element={<Checkout />} />
+          <Route path="/checkout/stripe-return" element={<StripeReturn />} />
           <Route path="/chat/:id" element={<ChatRoom />} />
           <Route path="/contact" element={<Contact />} />
 

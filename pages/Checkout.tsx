@@ -3,6 +3,7 @@ import { useStore } from '../store';
 import { ArrowLeft, Check, Copy, Loader2, MessageSquare, Upload, FileCheck, Globe, HelpCircle, Coins } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { isCartItemUnavailable } from '../lib/products';
+import StripeCheckout from '../components/StripeCheckout';
 
 // Compresses a base64 image to max 800px and quality 70% to avoid Supabase payload limits
 const compressImage = (base64: string, maxSize = 800, quality = 0.7): Promise<string> => {
@@ -95,7 +96,7 @@ const Checkout: React.FC = () => {
     const [copied, setCopied] = useState(false);
     const [proofFile, setProofFile] = useState<string | null>(null);
     const [createdChatId, setCreatedChatId] = useState<string | null>(null);
-    const [paymentMethod, setPaymentMethod] = useState<'pix' | 'crypto'>('pix');
+    const [paymentMethod, setPaymentMethod] = useState<'pix' | 'crypto' | 'stripe'>('pix');
     const [cryptoIndex, setCryptoIndex] = useState(0);
     const [cryptoPrices, setCryptoPrices] = useState<Record<string, number>>({ tether: 1, litecoin: 0, solana: 0 });
     const [cryptoPriceLoaded, setCryptoPriceLoaded] = useState(false);
@@ -384,6 +385,14 @@ const Checkout: React.FC = () => {
                         <>
                             <h2 className="mb-6 text-xl font-bold text-white">Payment Method</h2>
                             <div className="space-y-4">
+                                {import.meta.env.VITE_STRIPE_ENABLED === 'true' && (
+                                    <button onClick={() => setPaymentMethod('stripe')}
+                                        className={`flex w-full items-center justify-between rounded-xl border p-4 text-left transition ${paymentMethod === 'stripe' ? 'border-purple-500 bg-purple-500/10' : 'border-slate-800 bg-slate-950 hover:bg-slate-800'}`}>
+                                        <div><span className="block font-bold text-white">Cartão e outros meios via Stripe</span>
+                                            <span className="text-xs text-gray-400">Cobrança em USD: US$ {totalCartValue.toFixed(2)}</span></div>
+                                        <div className={`h-4 w-4 rounded-full border-[3px] ${paymentMethod === 'stripe' ? 'border-purple-500' : 'border-slate-600'}`} />
+                                    </button>
+                                )}
                                 <button
                                     onClick={() => setPaymentMethod('pix')}
                                     className={`flex w-full items-center justify-between rounded-xl border p-4 text-left transition ${paymentMethod === 'pix' ? 'border-blue-500 bg-blue-500/10' : 'border-slate-800 bg-slate-950 hover:bg-slate-800'}`}
@@ -449,7 +458,7 @@ const Checkout: React.FC = () => {
                         </>
                     ) : (
                         <>
-                            {paymentMethod === 'pix' ? (
+                            {paymentMethod === 'stripe' ? <StripeCheckout /> : paymentMethod === 'pix' ? (
                                 <>
                                     <h2 className="mb-2 text-xl font-bold text-white">Scan to Pay</h2>
                                     <p className="mb-6 text-sm text-gray-400">Open your banking app and scan the QR code or copy the Pix key below.</p>
