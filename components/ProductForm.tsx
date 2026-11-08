@@ -137,6 +137,23 @@ const ProductForm: React.FC<ProductFormProps> = ({ mode }) => {
     setVariants(prev => prev.map(v => v.id === variantId ? { ...v, [field]: value } : v));
   };
 
+  const handleVariantImageUpload = async (variantId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
+    const file = input.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const url = await uploadStoreImage(file, 'products');
+      handleUpdateVariant(variantId, 'image', url);
+      showToast('Imagem da variação carregada com sucesso!', 'success');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Falha ao enviar imagem.', 'error');
+    } finally {
+      input.value = '';
+      setUploading(false);
+    }
+  };
+
   const handleSaveQuickGame = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!quickGameName.trim()) return;
@@ -669,16 +686,8 @@ const ProductForm: React.FC<ProductFormProps> = ({ mode }) => {
                     >
                       <GripVertical className="h-4 w-4 text-gray-600 shrink-0 cursor-grab" />
 
-                      <label className="relative h-8 w-8 rounded-lg overflow-hidden border border-purple-900 bg-slate-900 shrink-0 cursor-pointer" title="Enviar imagem da variação">
+                      <label htmlFor={`variant-image-${v.id}`} className="relative h-8 w-8 rounded-lg overflow-hidden border border-purple-900 bg-slate-900 shrink-0 cursor-pointer" title="Enviar imagem da variação">
                         {v.image || image ? <img src={v.image || image} alt={v.name} className="h-full w-full object-cover" /> : <ImageIcon className="m-2 h-4 w-4 text-purple-400" />}
-                        <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={async e => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          setUploading(true);
-                          try { handleUpdateVariant(v.id, 'image', await uploadStoreImage(file, 'products')); }
-                          catch (error) { showToast(error instanceof Error ? error.message : 'Falha ao enviar imagem.', 'error'); }
-                          finally { setUploading(false); }
-                        }} />
                       </label>
 
                       <input
@@ -733,11 +742,23 @@ const ProductForm: React.FC<ProductFormProps> = ({ mode }) => {
                           type="text"
                           inputMode="url"
                           value={v.image || ''}
+                          disabled={uploading || saving}
                           onChange={e => handleUpdateVariant(v.id, 'image', e.target.value)}
                           placeholder="https://exemplo.com/pet.png"
                           className="mt-1 w-full rounded-lg border border-purple-950 bg-[#060817] px-2.5 py-2 text-xs text-white placeholder:text-gray-600 focus:border-purple-500 focus:outline-none"
                         />
                       </label>
+                      <div className="w-full pl-7">
+                        <label className={`inline-flex items-center gap-1.5 rounded-lg border border-purple-700 px-3 py-2 text-xs font-bold text-purple-200 ${uploading || saving ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-purple-900/40'}`}>
+                          <Upload className="h-3.5 w-3.5" />
+                          {uploading ? 'Enviando imagem…' : 'Escolher arquivo de imagem'}
+                          <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only"
+                            id={`variant-image-${v.id}`}
+                            aria-label={`Escolher arquivo de imagem para ${v.name || 'variação'}`}
+                            disabled={uploading || saving} onChange={e => void handleVariantImageUpload(v.id, e)} />
+                        </label>
+                        <span className="ml-2 text-[11px] text-gray-500">JPG, PNG ou WebP até 5 MB</span>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -813,7 +834,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ mode }) => {
                   <label className="flex flex-col items-center justify-center aspect-square w-16 rounded-xl border border-dashed border-purple-800 bg-[#080a1c] text-purple-400 hover:text-white hover:border-purple-500 cursor-pointer transition">
                     <Plus className="h-4 w-4" />
                     <span className="text-[9px] font-bold mt-0.5">Adicionar</span>
-                    <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleImageUpload} className="hidden" />
+                    <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleImageUpload} disabled={uploading || saving} className="hidden" />
                   </label>
                 </div>
               </div>

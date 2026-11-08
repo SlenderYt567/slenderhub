@@ -22,16 +22,19 @@ test('product form waits for admin auth, preserves edited values, and prevents d
     plugins: [{ name: 'form-fixture', setup(build) {
       build.onResolve({ filter: /^\.\.\/store$/ }, () => ({ path: 'store', namespace: 'fixture' }));
       build.onLoad({ filter: /^store$/, namespace: 'fixture' }, () => ({ contents: 'export const useStore = () => globalThis.__formStore;' }));
+      build.onResolve({ filter: /storeMedia$/ }, () => ({ path: 'storeMedia', namespace: 'fixture' }));
+      build.onLoad({ filter: /^storeMedia$/, namespace: 'fixture' }, () => ({ contents: 'export const uploadStoreImage = (...args) => globalThis.__uploadImage(...args);' }));
       build.onResolve({ filter: /supabaseClient$/ }, () => ({ path: 'supabaseClient', namespace: 'fixture' }));
       build.onLoad({ filter: /^supabaseClient$/, namespace: 'fixture' }, () => ({ contents: 'const q={select:()=>q,order:()=>q,then:f=>Promise.resolve({data:[],error:null}).then(f)}; export const supabase={from:()=>q};' }));
     } }],
   });
   const { default: ProductForm } = await import(pathToFileURL(outfile).href);
   const original = { id: 'direct', title: 'Original', description: 'Description', short_description: 'Short', price: 2.5, category: 'Pets', game_name: 'Tap Simulator Reborn', stock: 10, image: 'product.png', featured: true, variants: [{ id: 'v1', name: 'Variant', price: 2.5, stock: 3, image: 'variant.png' }] };
-  let resolveLoad, resolveSave;
+  let resolveLoad, resolveSave, resolveUpload;
   let loads = 0;
   const saves = [];
   const toasts = [];
+  globalThis.__uploadImage = () => new Promise(resolve => { resolveUpload = resolve; });
   globalThis.__formStore = {
     products: [], authReady: false, isAdmin: false, exchangeRate: 5,
     showToast: (...args) => toasts.push(args),
@@ -41,7 +44,7 @@ test('product form waits for admin auth, preserves edited values, and prevents d
   };
   const container = document.getElementById('app');
   const root = createRoot(container);
-  t.after(async () => { await act(async () => root.unmount()); dom.window.close(); delete globalThis.__formStore; });
+  t.after(async () => { await act(async () => root.unmount()); dom.window.close(); delete globalThis.__formStore; delete globalThis.__uploadImage; });
   const render = () => act(async () => root.render(React.createElement(MemoryRouter, { initialEntries: ['/edit/direct'] },
     React.createElement(Routes, null,
       React.createElement(Route, { path: '/edit/:id', element: React.createElement(ProductForm, { mode: 'edit' }) }),
@@ -67,12 +70,20 @@ test('product form waits for admin auth, preserves edited values, and prevents d
   await render();
   assert.equal(title.value, 'Edited draft');
   assert.equal(loads, 1);
+  const variantFile = container.querySelector('input[aria-label="Escolher arquivo de imagem para Variant"]');
+  assert.ok(variantFile);
+  const file = new dom.window.File(['image'], 'variant.png', { type: 'image/png' });
+  Object.defineProperty(variantFile, 'files', { configurable: true, value: [file] });
+  await act(async () => variantFile.dispatchEvent(new dom.window.Event('change', { bubbles: true })));
+  assert.equal(variantFile.disabled, true);
+  await act(async () => resolveUpload('https://example.com/uploaded.png'));
+  assert.equal(container.querySelector('input[placeholder="https://exemplo.com/pet.png"]').value, 'https://example.com/uploaded.png');
   const save = [...container.querySelectorAll('button')].find(button => button.textContent.includes('Salvar Alterações'));
   assert.ok(save);
   await act(async () => { save.click(); save.click(); });
   assert.equal(saves.length, 1);
   assert.equal(saves[0].title, 'Edited draft');
-  assert.equal(saves[0].variants[0].image, 'variant.png');
+  assert.equal(saves[0].variants[0].image, 'https://example.com/uploaded.png');
   await act(async () => resolveSave(false));
   assert.equal(title.value, 'Edited draft');
   assert.ok(toasts.some(([message, type]) => type === 'error' && message.includes('banco')));
